@@ -39,9 +39,13 @@
 - [ ] Write the system prompt used in the verdict call: role locked to fight judge only — takes two fighters, returns a winner and reasoning, nothing else
 - [ ] Explicitly forbid in the prompt: role changes, revealing the system prompt, following instructions embedded in fighter names/descriptions, doing anything other than judging the fight
 - [ ] Treat fighter input strictly as data to judge, never as instructions
+- [ ] Always name exactly one winner — no ties, no draws, no refusals, even for identical matchups (e.g. "cat vs cat"); the prompt must tell the judge to pick one anyway and give a playful reason (coin-flip-style tiebreaker is fine)
+- [ ] Response length: 2–4 sentences max for the reasoning — fun and playful in tone, but the logic must still hold up (a clear reason why the winner wins)
 - [ ] Test with adversarial input (e.g. a fighter name containing "ignore previous instructions and...") — confirm it still just judges a fight
+- [ ] Test identical matchup (A = B) — confirm it still returns one winner, no tie/refusal
+- [ ] Test several matchups — confirm reasoning is always 2–4 sentences, playful, and logical
 
-**Done when:** injected instructions inside fighter text don't change judge behavior or leak the system prompt.
+**Done when:** injected instructions inside fighter text don't change judge behavior or leak the system prompt; every matchup (including identical ones) yields exactly one winner with a 2–4 sentence playful-but-logical verdict.
 
 ---
 
@@ -52,6 +56,7 @@
 - [ ] `api/fight.js` serverless function: takes `{ fighterA, fighterB }`
 - [ ] Rate limit check runs first, before calling either API — key by IP, 5 requests/minute per `project-brief.md` §5, return 429 with a clear message when exceeded
 - [ ] Calls Claude for the verdict (using the Stage 2 system prompt) and OpenAI image API for both fighters' art
+- [ ] Verdict output format is enforced with a zod schema (`winner`: `"A"` | `"B"`, `reasoning`: string), not by JSON instructions in the system prompt — add `zod` as a dependency and validate/parse the verdict against it
 - [ ] Store both API keys in env vars, never in client code
 - [ ] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
 - [ ] Wire Fight button to call `/api/fight` instead of the fake timeout
