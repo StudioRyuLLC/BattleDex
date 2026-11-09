@@ -4,5 +4,9 @@
   "private": true,
   "scripts": {
     "build": "echo 'static site, no build step'"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.6.7"
   }
 }

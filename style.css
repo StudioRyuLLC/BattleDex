@@ -84,6 +84,10 @@ button:hover {
   text-align: center;
 }
 
+.fighters[hidden] {
+  display: none;
+}
+
 .fighters {
   display: flex;
   justify-content: center;
