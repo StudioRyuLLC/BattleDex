@@ -11,13 +11,25 @@ function showView(name) {
   }
 }
 
-function showResult({ winner, reasoning, imageA, imageB }) {
+function setFighterImage(id, src, label) {
+  const img = document.getElementById(id);
+  if (src) {
+    img.src = src; // URL or data: URI from the API
+    img.alt = label;
+    img.hidden = false;
+  } else {
+    // Clear any image left over from a previous fight.
+    img.removeAttribute('src');
+    img.hidden = true;
+  }
+}
+
+function showResult({ winner, reasoning, imageA, imageB }, fighterA, fighterB) {
   document.getElementById('result-winner').textContent = `${winner} wins!`;
   document.getElementById('result-reasoning').textContent = reasoning;
-  // Images arrive in a later Stage 3 step; hide the slots until then.
-  document.getElementById('result-fighters').hidden = !(imageA && imageB);
-  if (imageA) document.getElementById('result-image-a').src = imageA;
-  if (imageB) document.getElementById('result-image-b').src = imageB;
+  setFighterImage('result-image-a', imageA, fighterA);
+  setFighterImage('result-image-b', imageB, fighterB);
+  document.getElementById('result-fighters').hidden = !(imageA || imageB);
   showView('result');
 }
 
@@ -40,7 +52,7 @@ async function runFight(fighterA, fighterB) {
       showError(data.error || 'Something went wrong. Please try again.');
       return;
     }
-    showResult(data);
+    showResult(data, fighterA, fighterB);
   } catch {
     showError("Couldn't reach the server. Check your connection and try again.");
   }

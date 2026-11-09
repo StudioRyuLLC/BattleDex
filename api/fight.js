@@ -1,13 +1,16 @@
 // POST /api/fight  { fighterA, fighterB }
-// Stage 3 (verdict half): rate limit -> Claude verdict (zod structured output).
-// Image generation is not wired in yet.
+// Stage 3: rate limit -> Claude verdict (zod structured output) + one OpenAI
+// image per side, in parallel.
 
 const Anthropic = require("@anthropic-ai/sdk");
 const { zodOutputFormat } = require("@anthropic-ai/sdk/helpers/zod");
 const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT } = require("./judge-prompt");
 
+const { buildImagePrompt } = require("./art-style");
+
 const MODEL = "claude-sonnet-5-5";
+const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 const MAX_NAME_LENGTH = 100;
 
 // Output shape enforced via native structured outputs + zod.
@@ -75,39 +78,106 @@ module.exports = async (req, res) => {
       .json({ error: `Keep fighter names under ${MAX_NAME_LENGTH} characters.` });
   }
 
-  // 3. Verdict from Claude.
-  try {
-    const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env
-    const response = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 4096,
-      system: JUDGE_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: `<fighter_a>${fighterA}</fighter_a>\n<fighter_b>${fighterB}</fighter_b>`,
-        },
-      ],
-      output_config: {
-        effort: "low",
-        format: zodOutputFormat(VerdictSchema),
-      },
-    });
+  // 3. Verdict + both images, in parallel.
+  const [verdictR, imageAR, imageBR] = await Promise.allSettled([
+    getVerdict(fighterA, fighterB),
+    generateImage(fighterA),
+    generateImage(fighterB),
+  ]);
 
-    const verdict = VerdictSchema.safeParse(response.parsed_output);
-    if (response.stop_reason === "refusal" || !verdict.success) {
-      throw new Error(`No usable verdict (stop_reason: ${response.stop_reason})`);
-    }
-
-    return res.status(200).json({
-      winner: verdict.data.winner === "A" ? fighterA : fighterB,
-      winnerSide: verdict.data.winner,
-      reasoning: verdict.data.reasoning,
+  if (verdictR.status === "rejected") {
+    console.error("Verdict failed:", verdictR.reason);
+    return res.status(502).json({
+      code: "verdict_failed",
+      error: "The judge couldn't reach a verdict. Please try again.",
     });
-  } catch (err) {
-    console.error("Verdict failed:", err);
-    return res
-      .status(502)
-      .json({ error: "The judge couldn't reach a verdict. Please try again." });
   }
+
+  // Moderation-blocked is its own case, checked before generic image failure.
+  const blocked = [
+    ["A", imageAR],
+    ["B", imageBR],
+  ].find(([, r]) => r.status === "rejected" && r.reason?.moderationBlocked);
+  if (blocked) {
+    const [side] = blocked;
+    const name = side === "A" ? fighterA : fighterB;
+    return res.status(422).json({
+      code: "moderation_blocked",
+      side,
+      error: `"${name}" was blocked by the image safety filter. Try a different fighter.`,
+    });
+  }
+
+  if (imageAR.status === "rejected" || imageBR.status === "rejected") {
+    console.error("Image failed:", imageAR.reason || imageBR.reason);
+    return res.status(502).json({
+      code: "image_failed",
+      error: "The fighter art failed to generate. Please try again.",
+    });
+  }
+
+  const verdict = verdictR.value;
+  return res.status(200).json({
+    winner: verdict.winner === "A" ? fighterA : fighterB,
+    winnerSide: verdict.winner,
+    reasoning: verdict.reasoning,
+    imageA: imageAR.value,
+    imageB: imageBR.value,
+  });
 };
+
+async function getVerdict(fighterA, fighterB) {
+  const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env
+  const response = await client.messages.parse({
+    model: MODEL,
+    max_tokens: 4096,
+    system: JUDGE_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `<fighter_a>${fighterA}</fighter_a>\n<fighter_b>${fighterB}</fighter_b>`,
+      },
+    ],
+    output_config: {
+      effort: "low",
+      format: zodOutputFormat(VerdictSchema),
+    },
+  });
+
+  const verdict = VerdictSchema.safeParse(response.parsed_output);
+  if (response.stop_reason === "refusal" || !verdict.success) {
+    throw new Error(`No usable verdict (stop_reason: ${response.stop_reason})`);
+  }
+  return verdict.data;
+}
+
+// One image per side via OpenAI. Returns a data: URI. Throws an Error with
+// `moderationBlocked = true` when OpenAI's safety system rejects the prompt.
+async function generateImage(fighter) {
+  const r = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, // env only
+    },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      prompt: buildImagePrompt(fighter),
+      size: "1024x1024",
+      quality: "low",
+      output_format: "jpeg",
+      n: 1,
+    }),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const code = body?.error?.code;
+    const err = new Error(`OpenAI image error ${r.status}: ${body?.error?.message || ""}`);
+    err.moderationBlocked =
+      code === "moderation_blocked" || code === "content_policy_violation";
+    throw err;
+  }
+  const b64 = body?.data?.[0]?.b64_json;
+  if (!b64) throw new Error("OpenAI returned no image data");
+  return `data:image/jpeg;base64,${b64}`;
+}

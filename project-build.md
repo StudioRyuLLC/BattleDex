@@ -59,8 +59,11 @@
 - [ ] Verdict output format is enforced with a zod schema (`winner`: `"A"` | `"B"`, `reasoning`: string), not by JSON instructions in the system prompt — add `zod` as a dependency and validate/parse the verdict against it
 - [ ] Store both API keys in env vars, never in client code
 - [ ] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
+- [ ] Every image must follow the shared **Art Style Template**, defined once as a constant (e.g. `ART_STYLE` in `api/fight.js` or its own `api/art-style.js`) and appended to every image prompt, for both sides, no exceptions:
+  > Bold color oil painting, dynamic action pose, dramatic lighting, Baroque art style much like the Peruvian artist Boris Vallejo. Keep it centered, filling most of the frame, isolated on a plain solid black background with no scenery. Absolutely no text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames of any kind. Illustration only, nothing else on the canvas.
 - [ ] Wire Fight button to call `/api/fight` instead of the fake timeout
-- [ ] Handle errors distinctly in the UI: verdict failure, image failure, rate-limit 429 — don't hang on loading forever
+- [ ] Handle errors distinctly in the UI: verdict failure, image failure, **moderation-blocked**, rate-limit 429 — don't hang on loading forever
+- [ ] **Moderation-blocked is its own error case**, separate from a generic image failure: when the OpenAI image API rejects a fighter's prompt for safety/moderation reasons (e.g. `moderation_blocked` / content-policy error), the API returns a distinct status/code (e.g. 422 `{ code: "moderation_blocked", side: "A"|"B" }`) and the UI shows a specific message ("that fighter was blocked, try a different one") instead of the generic "image failed, try again" (which is for timeouts/5xx and is worth retrying)
 
 **Done when:** typing two real fighters returns winner + reasoning + one image per side from a single call; hammering Fight 6x in a minute from one IP gets blocked on the 6th and resets after a minute.
 
