@@ -69,31 +69,22 @@
 
 ---
 
-## Stage 4 — Verdict UI polish
-
-**Goal:** match brief's spec: "winner card with animation, plus written reasoning."
-
-- [ ] Winner card component: name, image, reasoning text
-- [ ] Entry animation (CSS transition/keyframes) when result lands
-- [ ] Clean up loading state so it covers the full wait for the fight call
-
-**Done when:** full Fight flow feels finished, no more placeholder styling.
-
----
-
-## Stage 5 — BattleDex (save to localStorage)
+## Stage 4 — BattleDex (save to localStorage)
 
 **Goal:** save individual fighters, view saved fighters.
 
 - [ ] "Save" action per fighter: writes `{ label, image }` to a `localStorage` array — no fight/winner/reasoning data, just the fighter
-- [ ] BattleDex view: list/grid of saved fighters, click to view label + image
+- [ ] BattleDex view: grid of saved fighters, each shown as a styled **mini trading card**: image on top, name below. Cards are display-only, **not click-to-view** (it's just a name and an image, so there is nothing more to open)
+- [ ] BattleDex view has a **"Back to recent fight"** button that returns to the most recent fight's result view, and a **"New fight"** button that goes to the input form (both switch views through `showView`)
+- [ ] BattleDex is its own page (`battledex.html` + `battledex.js`), sharing storage helpers with the fight page via `dex-store.js`
+- [ ] The recent fight is kept in `sessionStorage` (so the separate BattleDex page can link back to it via `index.html#recent`), separate from the BattleDex `localStorage` array, so saving still stores only `{ label, image }`. Hide "Back to recent fight" when no fight has been run yet
 - [ ] Delete/clear entries from BattleDex
 
-**Done when:** save a fighter, reload the page, it's still there in BattleDex.
+**Done when:** save a fighter, reload the page, it's still there in BattleDex as a trading card; from BattleDex you can jump back to your recent fight or start a new one.
 
 ---
 
-## Stage 6 — Image compression before save
+## Stage 5 — Image compression before save
 
 **Goal:** stay under `localStorage` quota (per brief §5).
 
@@ -105,15 +96,35 @@
 
 ---
 
-## Stage 7 — Final QA
+## Stage 6 — Claude Redesign
 
-**Goal:** ship it, locally.
+**Goal:** instead of just polishing the verdict UI, hand the entire app to Claude Design for a full visual overhaul. Runs after BattleDex and compression so every view exists before it is restyled.
+
+- [ ] Give Claude Design the whole app: form, loading, result (winner card, both fighter images, reasoning), error, and BattleDex views, plus `project-brief.md` for intent
+- [ ] Apply the redesign across `index.html`, `style.css` and any needed `script.js` markup hooks, covering every view, not just the result
+- [ ] Winner card with entry animation (CSS transition/keyframes) when the result lands, per the brief's "winner card with animation, plus written reasoning"
+- [ ] Loading state covers the full wait for the fight call
+- [ ] Distinct, designed error states: verdict failure, image failure, moderation-blocked, 429 rate limit
+- [ ] Redesigned UI still works with the art style template's light gray image backgrounds
+- [ ] No behavior regressions: `showView` switching, fight flow, save/delete in BattleDex all still work
+
+**Done when:** the whole app has one cohesive, finished look with no placeholder styling, and the full flow works as before.
+
+---
+
+## Stage 7 — Final QA + Deploy to Vercel
+
+**Goal:** ship it.
 
 - [ ] Full manual pass: empty inputs, one empty input, same fighter twice, very long names, non-English input
 - [ ] Confirm rate limiting doesn't fire on normal single-fight use
 - [ ] Confirm loading/error states cover: fight API failure (verdict or image side), rate limit hit, network offline
 
-**Done when:** local build handles the MVP end to end without console errors. No deploy step — stays local.
+- [ ] Deploy to Vercel: set `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` as Vercel project env vars (never committed), deploy, and smoke-test a real fight on the live URL
+- [ ] Re-check rate limiting on the deployed app: the in-memory limiter is per serverless instance, so confirm it behaves acceptably or swap in a shared store (e.g. Upstash/KV)
+- [ ] Confirm the deployed function finishes within Vercel's function time limit (verdict + two images run in parallel; raise `maxDuration` in `vercel.json` if needed)
+
+**Done when:** the MVP handles every QA case end to end without console errors locally, and a real fight works on the deployed Vercel URL.
 
 ---
 

@@ -20,6 +20,7 @@
 
         <button type="submit">Fight</button>
       </form>
+      <a href="battledex.html" class="button secondary">BattleDex</a>
     </section>
 
     <section id="view-loading" class="view" hidden>
@@ -30,11 +31,19 @@
     <section id="view-result" class="view" hidden>
       <h2 id="result-winner"></h2>
       <div class="fighters" id="result-fighters" hidden>
-        <img id="result-image-a" src="" alt="Fighter A" />
-        <img id="result-image-b" src="" alt="Fighter B" />
+        <figure>
+          <img id="result-image-a" alt="Fighter A" hidden />
+          <button type="button" id="save-a" class="secondary">Save to BattleDex</button>
+        </figure>
+        <figure>
+          <img id="result-image-b" alt="Fighter B" hidden />
+          <button type="button" id="save-b" class="secondary">Save to BattleDex</button>
+        </figure>
       </div>
+      <p id="save-status" role="status"></p>
       <p id="result-reasoning"></p>
       <button id="result-again">Fight again</button>
+      <a href="battledex.html" class="button secondary">BattleDex</a>
     </section>
 
     <section id="view-error" class="view" hidden>
@@ -43,6 +52,7 @@
     </section>
   </main>
 
+  <script src="dex-store.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

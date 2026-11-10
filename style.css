@@ -95,16 +95,135 @@ button:hover {
   margin: 1rem 0;
 }
 
-.fighters img {
+.fighters figure {
   width: 45%;
   max-width: 180px;
+  margin: 0;
+}
+
+.fighters img {
+  width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 8px;
   background: #222;
 }
 
+.fighters img[hidden],
+.fighters button[hidden] {
+  display: none;
+}
+
+button.secondary {
+  background: #333;
+}
+
+button.secondary:hover {
+  background: #444;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+#save-status {
+  color: #ff8080;
+  font-size: 0.85rem;
+}
+
+#view-form > .secondary,
+#view-result > .secondary,
+#view-battledex > .secondary {
+  width: 100%;
+}
+
+/* BattleDex: mini trading cards (display-only) */
+.dex-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dex-actions button,
+.dex-actions a {
+  flex: 1;
+}
+
+.dex-actions button[hidden],
+#dex-empty[hidden],
+#dex-clear[hidden] {
+  display: none;
+}
+
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  border: 3px solid #e6b422;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #2a2a2a, #181818);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #222;
+}
+
+.card-name {
+  margin: 0.5rem 0 0.25rem;
+  text-align: center;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.card-delete {
+  margin-top: auto;
+  padding: 0.3rem;
+  font-size: 0.75rem;
+}
+
 #view-error {
   text-align: center;
   color: #ff8080;
+}
+
+/* Links styled as buttons (navigation between pages) */
+a.button {
+  display: block;
+  padding: 0.7rem;
+  margin-top: 0.5rem;
+  border-radius: 6px;
+  background: #e63946;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.button:hover {
+  background: #d62839;
+}
+
+a.button.secondary {
+  background: #333;
+}
+
+a.button.secondary:hover {
+  background: #444;
+}
+
+a.button[hidden] {
+  display: none;
 }
