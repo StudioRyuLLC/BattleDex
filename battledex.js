@@ -35,6 +35,7 @@ function renderDex() {
 }
 
 document.getElementById('dex-recent').hidden = !loadRecentFight();
+document.getElementById('dex-rematch').hidden = !loadRecentFight();
 document.getElementById('dex-clear').addEventListener('click', () => {
   if (confirm('Delete all saved fighters?')) {
     saveDex([]);

@@ -162,8 +162,16 @@ async function runFight(fighterA, fighterB) {
 
 document.getElementById('fight-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const fighterA = document.getElementById('fighter-a').value.trim();
-  const fighterB = document.getElementById('fighter-b').value.trim();
+  const inputA = document.getElementById('fighter-a');
+  const inputB = document.getElementById('fighter-b');
+  // Keep the submitted values in local variables so the fight completes,
+  // then clear the form so "Fight again" starts with empty fields.
+  const fighterA = inputA.value.trim();
+  const fighterB = inputB.value.trim();
+  inputA.value = '';
+  inputB.value = '';
+  formHint.hidden = true;
+  formHint.textContent = '';
   runFight(fighterA, fighterB);
 });
 
@@ -188,4 +196,15 @@ for (const id of ['fighter-a', 'fighter-b']) {
     formHint.textContent = atLimit ? NAME_TOO_LONG_MESSAGE : '';
     formHint.hidden = !atLimit;
   });
+}
+
+// Rematch from BattleDex: prefill both fields with the most recent fight's
+// fighters. Any other way into the form leaves the fields empty.
+if (location.hash === '#rematch') {
+  const saved = loadRecentFight();
+  if (saved) {
+    document.getElementById('fighter-a').value = saved.fighterA;
+    document.getElementById('fighter-b').value = saved.fighterB;
+  }
+  showView('form');
 }
