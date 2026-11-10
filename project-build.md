@@ -59,6 +59,7 @@
 - [ ] Verdict output format is enforced with a zod schema (`winner`: `"A"` | `"B"`, `reasoning`: string), not by JSON instructions in the system prompt — add `zod` as a dependency and validate/parse the verdict against it
 - [ ] Store both API keys in env vars, never in client code
 - [ ] Group inputs (e.g. "10 cows") still produce exactly one image for that side — handled in the prompt sent to the image API, not by looping
+- [ ] Image prompt composition rules (prompt only): singular ("a werebear", "one dwarf", "the dragon") = exactly ONE character; explicit quantity ("3 lions", "10 cows") = exactly that many; vague plural ("some wolves", "several goblins") = a small group of 3–5; every character fully and clearly visible in the frame
 - [ ] Every image must follow the shared **Art Style Template**, defined once as a constant (e.g. `ART_STYLE` in `api/fight.js` or its own `api/art-style.js`) and appended to every image prompt, for both sides, no exceptions:
   > Bold flat-color illustration, thick black outlines, dynamic action pose, dramatic lighting, comic book character art style, John Romita Jr.-style of Marvel Comics. Keep it centered, filling most of the frame, isolated on a plain solid light gray background with no scenery. Absolutely no text, words, letters, numbers, logos, watermarks, UI elements, borders, or frames of any kind. Illustration only, nothing else on the canvas.
 - [ ] Wire Fight button to call `/api/fight` instead of the fake timeout
@@ -88,9 +89,9 @@
 
 **Goal:** stay under `localStorage` quota (per brief §5).
 
-- [ ] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
-- [ ] Save the compressed data URI, not the original
-- [ ] Test with several saved fighters that quota isn't hit quickly
+- [x] Before saving a fighter to BattleDex, draw its image to an off-screen `<canvas>`, resize down, re-export as JPEG/WebP at reduced quality
+- [x] Save the compressed data URI, not the original
+- [x] Test with several saved fighters that quota isn't hit quickly
 
 **Done when:** ~10+ saved fighters don't blow `localStorage` quota.
 

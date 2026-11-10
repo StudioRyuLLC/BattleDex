@@ -11,7 +11,7 @@ const { buildImagePrompt } = require("./art-style");
 
 const MODEL = "claude-sonnet-5-5";
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
-const MAX_NAME_LENGTH = 100;
+const MAX_NAME_LENGTH = 50;
 
 // Output shape enforced via native structured outputs + zod.
 const VerdictSchema = z.object({
@@ -54,7 +54,7 @@ function cleanName(value) {
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Use POST." });
+    return res.status(405).json({ error: "Hark, traveler! This gate opens only for a POST. Knock again the proper way." });
   }
 
   // 1. Rate limit first, before touching any external API.
@@ -62,7 +62,7 @@ module.exports = async (req, res) => {
   if (limit.limited) {
     res.setHeader("Retry-After", String(limit.retryAfter));
     return res.status(429).json({
-      error: `Too many fights! Try again in ${limit.retryAfter} seconds.`,
+      error: `Easy there, champion! The arena crowd is hoarse and the gladiators need a breather. Return in ${limit.retryAfter} seconds!`,
     });
   }
 
@@ -70,12 +70,12 @@ module.exports = async (req, res) => {
   const fighterA = cleanName(req.body?.fighterA);
   const fighterB = cleanName(req.body?.fighterB);
   if (!fighterA || !fighterB) {
-    return res.status(400).json({ error: "Both fighters need a name." });
+    return res.status(400).json({ error: "An empty corner? Ladies and gentlemen, no brawl begins without TWO named challengers!" });
   }
   if (fighterA.length > MAX_NAME_LENGTH || fighterB.length > MAX_NAME_LENGTH) {
     return res
       .status(400)
-      .json({ error: `Keep fighter names under ${MAX_NAME_LENGTH} characters.` });
+      .json({ error: `By my lute, that name is a saga! The herald can only bellow ${MAX_NAME_LENGTH} letters or fewer. Trim thy title, brave soul!` });
   }
 
   // 3. Verdict + both images, in parallel.
@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
     console.error("Verdict failed:", verdictR.reason);
     return res.status(502).json({
       code: "verdict_failed",
-      error: "The judge couldn't reach a verdict. Please try again.",
+      error: "Gasp! The Grand Judge has fallen asleep on the scrolls and no verdict was sung. Rouse them and call the fight again!",
     });
   }
 
@@ -104,7 +104,7 @@ module.exports = async (req, res) => {
     return res.status(422).json({
       code: "moderation_blocked",
       side,
-      error: `"${name}" was blocked by the image safety filter. Try a different fighter.`,
+      error: `Halt! The Gatekeepers of the Arena have barred "${name}" from the ring, and no amount of bribery will move them. Send a different challenger!`,
     });
   }
 
@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
     console.error("Image failed:", imageAR.reason || imageBR.reason);
     return res.status(502).json({
       code: "image_failed",
-      error: "The fighter art failed to generate. Please try again.",
+      error: "Alas! The portrait painter dropped the brush and spilled the inks. Our heroes remain unpainted. Summon them once more!",
     });
   }
 

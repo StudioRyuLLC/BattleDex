@@ -13,10 +13,12 @@
     <section id="view-form" class="view">
       <form id="fight-form">
         <label for="fighter-a">Fighter A</label>
-        <input type="text" id="fighter-a" name="fighterA" placeholder="e.g. a grizzly bear" required />
+        <input type="text" id="fighter-a" name="fighterA" placeholder="e.g. a grizzly bear" maxlength="50" required />
 
         <label for="fighter-b">Fighter B</label>
-        <input type="text" id="fighter-b" name="fighterB" placeholder="e.g. 10 cows" required />
+        <input type="text" id="fighter-b" name="fighterB" placeholder="e.g. 10 cows" maxlength="50" required />
+
+        <p id="form-hint" role="status" hidden></p>
 
         <button type="submit">Fight</button>
       </form>
@@ -25,7 +27,7 @@
 
     <section id="view-loading" class="view" hidden>
       <div class="spinner" aria-hidden="true"></div>
-      <p>Fighting...</p>
+      <p id="loading-message" aria-live="polite">Sharpening claws...</p>
     </section>
 
     <section id="view-result" class="view" hidden>

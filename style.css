@@ -227,3 +227,13 @@ a.button.secondary:hover {
 a.button[hidden] {
   display: none;
 }
+
+#form-hint {
+  margin: 0;
+  color: #ffb347;
+  font-size: 0.85rem;
+}
+
+#form-hint[hidden] {
+  display: none;
+}

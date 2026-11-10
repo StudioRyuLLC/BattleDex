@@ -38,3 +38,38 @@ function saveRecentFight(fight) {
     // Too big or storage blocked: "Back to recent fight" just won't appear.
   }
 }
+
+// --- Image compression (Stage 5) ---
+// Fighter art arrives as ~260 KB 1024px JPEG data URIs; localStorage holds
+// ~5 MB total. Redraw onto an off-screen canvas at thumbnail size and
+// re-export as WebP (JPEG fallback) so each saved fighter is a few KB.
+const THUMB_MAX_SIDE = 320;
+const THUMB_QUALITY = 0.7;
+const compressCache = new Map(); // original data URI -> Promise<compressed>
+
+function compressImage(src) {
+  if (!compressCache.has(src)) {
+    compressCache.set(
+      src,
+      new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, THUMB_MAX_SIDE / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          let out = canvas.toDataURL('image/webp', THUMB_QUALITY);
+          // Browsers without WebP encoding silently return PNG.
+          if (!out.startsWith('data:image/webp')) {
+            out = canvas.toDataURL('image/jpeg', THUMB_QUALITY);
+          }
+          resolve(out);
+        };
+        img.onerror = () => reject(new Error('Could not load image to compress'));
+        img.src = src;
+      })
+    );
+  }
+  return compressCache.get(src);
+}
