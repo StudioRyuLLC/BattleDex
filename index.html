@@ -4,55 +4,204 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Battleground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Cinzel+Decorative:wght@700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
-    <h1>Battleground</h1>
+  <!-- Icon sprite (Lucide-style strokes) -->
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-swords" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" x2="19" y1="19" y2="13"/><line x1="16" x2="20" y1="16" y2="20"/><line x1="19" x2="21" y1="21" y2="19"/><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"/><line x1="5" x2="9" y1="14" y2="18"/><line x1="7" x2="4" y1="17" y2="20"/><line x1="3" x2="5" y1="19" y2="21"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+    <symbol id="i-crown" viewBox="0 0 24 24"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></symbol>
+    <symbol id="i-skull" viewBox="0 0 24 24"><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M15 22a1 1 0 0 0 1-1v-1a2 2 0 0 0 1.56-3.25 8 8 0 1 0-11.12 0A2 2 0 0 0 8 20v1a1 1 0 0 0 1 1z"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="12" r="1"/></symbol>
+    <symbol id="i-bookmark-plus" viewBox="0 0 24 24"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/><line x1="12" x2="12" y1="7" y2="13"/><line x1="15" x2="9" y1="10" y2="10"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></symbol>
+    <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+    <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+  </svg>
 
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
+      <span>Battleground</span>
+    </a>
+    <a class="button nav-btn" href="battledex.html">
+      <svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>
+      <span>BattleDex</span>
+    </a>
+  </header>
+
+  <main class="content">
+    <!-- View 1: input -->
     <section id="view-form" class="view">
-      <form id="fight-form">
-        <label for="fighter-a">Fighter A</label>
-        <input type="text" id="fighter-a" name="fighterA" placeholder="e.g., A fantasy being like an Elf" maxlength="50" autocomplete="off" required />
+      <div class="hero">
+        <p class="eyebrow">The arena awaits</p>
+        <h1 class="wordmark">Battleground</h1>
+        <p class="subline">Name two challengers. The Oracle shall weigh their might and declare who walks from the sand alive.</p>
+      </div>
 
-        <label for="fighter-b">Fighter B</label>
-        <input type="text" id="fighter-b" name="fighterB" placeholder="e.g., A fantasy being like a Hobbit" maxlength="50" autocomplete="off" required />
+      <form id="fight-form">
+        <div class="duel">
+          <div class="panel panel-a">
+            <span class="panel-tag tag-a">Challenger I</span>
+            <label for="fighter-a" class="fighter-label">
+              <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+              <span>Fighter A</span>
+            </label>
+            <input type="text" id="fighter-a" name="fighterA" placeholder="e.g., A fantasy being like an Elf" maxlength="50" autocomplete="off" required />
+            <div class="panel-meta">
+              <span class="flavour">A beast, a hero, a horde — any foe will do.</span>
+              <span class="counter" id="count-a" aria-hidden="true">0 / 50</span>
+            </div>
+          </div>
+
+          <div class="vs-medallion" aria-hidden="true">VS</div>
+
+          <div class="panel panel-b">
+            <span class="panel-tag tag-b">Challenger II</span>
+            <label for="fighter-b" class="fighter-label">
+              <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
+              <span>Fighter B</span>
+            </label>
+            <input type="text" id="fighter-b" name="fighterB" placeholder="e.g., A fantasy being like a Hobbit" maxlength="50" autocomplete="off" required />
+            <div class="panel-meta">
+              <span class="flavour">Groups count as one warband.</span>
+              <span class="counter" id="count-b" aria-hidden="true">0 / 50</span>
+            </div>
+          </div>
+        </div>
 
         <p id="form-hint" role="status" hidden></p>
 
-        <button type="submit">Fight</button>
+        <div class="fight-row">
+          <button type="submit" class="primary btn-fight">
+            <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
+            <span>Fight</span>
+          </button>
+          <p class="decree">By decree of the arena: five bouts per minute.</p>
+        </div>
       </form>
-      <a href="battledex.html" class="button secondary">BattleDex</a>
     </section>
 
+    <!-- View 2: loading -->
     <section id="view-loading" class="view" hidden>
-      <div class="spinner" aria-hidden="true"></div>
-      <p id="loading-message" aria-live="polite">Sharpening claws...</p>
+      <p class="matchup">
+        <span id="loading-a" class="name-a"></span>
+        <span class="vs-small" aria-hidden="true">vs</span>
+        <span id="loading-b" class="name-b"></span>
+      </p>
+
+      <div class="emblem" aria-hidden="true">
+        <svg class="ring ring-outer" viewBox="0 0 300 300">
+          <circle cx="150" cy="150" r="144" fill="none" stroke="#8F7246" stroke-width="1.5"/>
+          <circle cx="150" cy="150" r="130" fill="none" stroke="#E2B65C" stroke-width="3" stroke-dasharray="2 14" stroke-linecap="round"/>
+          <polygon points="150,2 144,14 156,14" fill="#E2B65C"/>
+          <polygon points="298,150 286,144 286,156" fill="#E2B65C"/>
+          <polygon points="150,298 144,286 156,286" fill="#E2B65C"/>
+          <polygon points="2,150 14,144 14,156" fill="#E2B65C"/>
+        </svg>
+        <svg class="ring ring-inner" viewBox="0 0 300 300">
+          <circle cx="150" cy="150" r="108" fill="none" stroke="#E0714D" stroke-width="2.5" stroke-dasharray="10 8"/>
+        </svg>
+        <div class="core"></div>
+        <div class="spark"></div>
+        <svg class="icon clash"><use href="#i-swords"/></svg>
+      </div>
+
+      <div class="loading-text">
+        <p class="eyebrow">The Oracle deliberates</p>
+        <p id="loading-message" aria-live="polite">Sharpening claws...</p>
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      </div>
     </section>
 
+    <!-- View 3: result -->
     <section id="view-result" class="view" hidden>
+      <p class="eyebrow">The Oracle has spoken</p>
       <h2 id="result-winner"></h2>
-      <div class="fighters" id="result-fighters" hidden>
-        <figure>
-          <img id="result-image-a" alt="Fighter A" hidden />
-          <button type="button" id="save-a" class="secondary">Save to BattleDex</button>
+
+      <div class="fighters" id="result-fighters">
+        <figure class="fighter" id="fig-a">
+          <div class="stage">
+            <div class="rays" aria-hidden="true"></div>
+          <div class="crown" aria-hidden="true"><svg class="icon"><use href="#i-crown"/></svg></div>
+          <div class="frame">
+            <svg class="icon frame-ph" aria-hidden="true"><use href="#i-shield"/></svg>
+            <img id="result-image-a" alt="Fighter A" hidden />
+            <span class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+          </div>
+          <span class="ribbon ribbon-victor">Victor</span>
+          <span class="ribbon ribbon-fallen"><svg class="icon" aria-hidden="true"><use href="#i-skull"/></svg>Fallen</span>
+          <figcaption class="plate" id="name-a"></figcaption>
+          <button type="button" id="save-a" class="secondary save-btn">
+            <svg class="icon" aria-hidden="true"><use href="#i-bookmark-plus"/></svg>
+            <span class="label">Save to BattleDex</span>
+          </button>
         </figure>
-        <figure>
-          <img id="result-image-b" alt="Fighter B" hidden />
-          <button type="button" id="save-b" class="secondary">Save to BattleDex</button>
+
+        <div class="vs-disc" aria-hidden="true">VS</div>
+
+        <figure class="fighter" id="fig-b">
+          <div class="stage">
+            <div class="rays" aria-hidden="true"></div>
+          <div class="crown" aria-hidden="true"><svg class="icon"><use href="#i-crown"/></svg></div>
+          <div class="frame">
+            <svg class="icon frame-ph" aria-hidden="true"><use href="#i-shield"/></svg>
+            <img id="result-image-b" alt="Fighter B" hidden />
+            <span class="embers" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </div>
+          </div>
+          <span class="ribbon ribbon-victor">Victor</span>
+          <span class="ribbon ribbon-fallen"><svg class="icon" aria-hidden="true"><use href="#i-skull"/></svg>Fallen</span>
+          <figcaption class="plate" id="name-b"></figcaption>
+          <button type="button" id="save-b" class="secondary save-btn">
+            <svg class="icon" aria-hidden="true"><use href="#i-bookmark-plus"/></svg>
+            <span class="label">Save to BattleDex</span>
+          </button>
         </figure>
       </div>
+
       <p id="save-status" role="status"></p>
-      <p id="result-reasoning"></p>
-      <button id="result-again">Fight again</button>
-      <a href="battledex.html" class="button secondary">BattleDex</a>
+
+      <div class="parchment">
+        <h3>The Oracle's Verdict</h3>
+        <p id="result-reasoning"></p>
+        <span class="seal" aria-hidden="true"><svg class="icon"><use href="#i-swords"/></svg></span>
+      </div>
+
+      <div class="actions">
+        <button id="result-again" class="primary">
+          <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
+          <span>Fight again</span>
+        </button>
+        <a href="battledex.html" class="button secondary">
+          <svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>
+          <span>BattleDex</span>
+        </a>
+      </div>
     </section>
 
+    <!-- View 4: error -->
     <section id="view-error" class="view" hidden>
-      <p id="error-message">Something went wrong.</p>
-      <button id="error-again">Try again</button>
+      <div class="error-panel">
+        <svg class="icon error-icon" aria-hidden="true"><use href="#i-skull"/></svg>
+        <p id="error-message">Something went wrong.</p>
+        <button id="error-again" class="primary">
+          <svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>
+          <span>Try again</span>
+        </button>
+      </div>
     </section>
   </main>
+
+  <footer class="foot" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="#8F7246"/></svg>
+  </footer>
 
   <script src="dex-store.js"></script>
   <script src="script.js"></script>

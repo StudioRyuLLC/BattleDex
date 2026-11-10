@@ -101,13 +101,13 @@
 
 **Goal:** instead of just polishing the verdict UI, hand the entire app to Claude Design for a full visual overhaul. Runs after BattleDex and compression so every view exists before it is restyled.
 
-- [ ] Give Claude Design the whole app: form, loading, result (winner card, both fighter images, reasoning), error, and BattleDex views, plus `project-brief.md` for intent
-- [ ] Apply the redesign across `index.html`, `style.css` and any needed `script.js` markup hooks, covering every view, not just the result
-- [ ] Winner card with entry animation (CSS transition/keyframes) when the result lands, per the brief's "winner card with animation, plus written reasoning"
-- [ ] Loading state covers the full wait for the fight call
-- [ ] Distinct, designed error states: verdict failure, image failure, moderation-blocked, 429 rate limit
-- [ ] Redesigned UI still works with the art style template's light gray image backgrounds
-- [ ] No behavior regressions: `showView` switching, fight flow, save/delete in BattleDex all still work
+- [x] Give Claude Design the whole app: form, loading, result (winner card, both fighter images, reasoning), error, and BattleDex views, plus `project-brief.md` for intent
+- [x] Apply the redesign across `index.html`, `style.css` and any needed `script.js` markup hooks, covering every view, not just the result
+- [x] Winner card with entry animation (CSS transition/keyframes) when the result lands, per the brief's "winner card with animation, plus written reasoning"
+- [x] Loading state covers the full wait for the fight call
+- [x] Distinct, designed error states: verdict failure, image failure, moderation-blocked, 429 rate limit
+- [x] Redesigned UI still works with the art style template's light gray image backgrounds
+- [x] No behavior regressions: `showView` switching, fight flow, save/delete in BattleDex all still work
 
 **Done when:** the whole app has one cohesive, finished look with no placeholder styling, and the full flow works as before.
 

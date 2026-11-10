@@ -7,6 +7,27 @@ function renderDex() {
     const card = document.createElement('article');
     card.className = 'card';
 
+    const top = document.createElement('div');
+    top.className = 'card-top';
+
+    const no = document.createElement('span');
+    no.className = 'card-no';
+    no.textContent = `No. ${String(index + 1).padStart(3, '0')}`;
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'card-delete';
+    del.setAttribute('aria-label', `Delete ${fighter.label}`);
+    del.append(makeIcon('trash'));
+    del.addEventListener('click', () => {
+      const next = loadDex();
+      next.splice(index, 1);
+      saveDex(next);
+      renderDex();
+    });
+
+    top.append(no, del);
+
     const img = document.createElement('img');
     img.src = fighter.image;
     img.alt = fighter.label;
@@ -15,32 +36,44 @@ function renderDex() {
     name.className = 'card-name';
     name.textContent = fighter.label;
 
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'card-delete secondary';
-    del.textContent = 'Delete';
-    del.setAttribute('aria-label', `Delete ${fighter.label}`);
-    del.addEventListener('click', () => {
-      const next = loadDex();
-      next.splice(index, 1);
-      saveDex(next);
-      renderDex();
-    });
-
-    card.append(img, name, del);
+    card.append(top, img, name);
     grid.append(card);
   });
-  document.getElementById('dex-empty').hidden = list.length > 0;
-  document.getElementById('dex-clear').hidden = list.length === 0;
+
+  const n = list.length;
+  document.getElementById('dex-count').textContent =
+    n === 0
+      ? 'No champions enshrined in thy chronicle yet.'
+      : `${n} ${n === 1 ? 'champion' : 'champions'} enshrined in thy chronicle.`;
+  document.getElementById('dex-empty').hidden = n > 0;
+  document.getElementById('dex-clear').hidden = n === 0;
 }
 
 document.getElementById('dex-recent').hidden = !loadRecentFight();
 document.getElementById('dex-rematch').hidden = !loadRecentFight();
-document.getElementById('dex-clear').addEventListener('click', () => {
-  if (confirm('Delete all saved fighters?')) {
-    saveDex([]);
-    renderDex();
-  }
+const confirmBox = document.getElementById('confirm-clear');
+const clearBtn = document.getElementById('dex-clear');
+
+function closeConfirm() {
+  confirmBox.hidden = true;
+  clearBtn.focus();
+}
+
+clearBtn.addEventListener('click', () => {
+  confirmBox.hidden = false;
+  document.getElementById('confirm-cancel').focus();
+});
+document.getElementById('confirm-cancel').addEventListener('click', closeConfirm);
+confirmBox.addEventListener('click', (e) => {
+  if (e.target === confirmBox) closeConfirm();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !confirmBox.hidden) closeConfirm();
+});
+document.getElementById('confirm-yes').addEventListener('click', () => {
+  saveDex([]);
+  renderDex();
+  confirmBox.hidden = true;
 });
 
 renderDex();

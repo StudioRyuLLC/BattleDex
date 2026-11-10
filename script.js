@@ -5,6 +5,19 @@ const views = {
   error: document.getElementById('view-error'),
 };
 
+// Shift the page's ember glow toward the winner (A = left, B = right).
+const root = document.documentElement;
+function setSpotlight(side) {
+  root.style.setProperty('--spot-x', side === 'A' ? '30%' : side === 'B' ? '70%' : '50%');
+}
+
+// Re-run a CSS animation by removing the class, forcing a reflow, re-adding it.
+function restartAnimation(el, cls) {
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
 // Rotating loading messages, shown only while the loading view is visible.
 const LOADING_MESSAGES = [
   'Sharpening claws...',
@@ -22,14 +35,19 @@ const LOADING_MESSAGES = [
 const loadingMessageEl = document.getElementById('loading-message');
 let loadingTimer = null;
 
+function setLoadingMessage(text) {
+  loadingMessageEl.textContent = text;
+  restartAnimation(loadingMessageEl, 'msg-in');
+}
+
 function startLoadingMessages() {
   if (loadingTimer) return;
   // Random start so repeat fights don't always open on the same phrase.
   let i = Math.floor(Math.random() * LOADING_MESSAGES.length);
-  loadingMessageEl.textContent = LOADING_MESSAGES[i];
+  setLoadingMessage(LOADING_MESSAGES[i]);
   loadingTimer = setInterval(() => {
     i = (i + 1) % LOADING_MESSAGES.length;
-    loadingMessageEl.textContent = LOADING_MESSAGES[i];
+    setLoadingMessage(LOADING_MESSAGES[i]);
   }, 2200);
 }
 
@@ -44,6 +62,7 @@ function showView(name) {
   }
   if (name === 'loading') startLoadingMessages();
   else stopLoadingMessages();
+  if (name !== 'result') setSpotlight(null);
 }
 
 // Storage helpers (loadDex/saveDex/recent fight) come from dex-store.js.
@@ -56,6 +75,12 @@ const saveButtons = {
   B: document.getElementById('save-b'),
 };
 const saveStatus = document.getElementById('save-status');
+
+// Save buttons hold an icon plus a text label; update both together.
+function setSaveButton(btn, icon, label) {
+  btn.querySelector('use').setAttribute('href', '#i-' + icon);
+  btn.querySelector('.label').textContent = label;
+}
 
 function sideImage(side) {
   const { data } = recentFight;
@@ -76,11 +101,12 @@ async function updateSaveButton(side) {
     if (fight !== recentFight) return; // a newer fight replaced this one
     const saved = loadDex().some((f) => f.image === compressed);
     btn.disabled = saved;
-    btn.textContent = saved ? 'Saved ✓' : 'Save to BattleDex';
+    if (saved) setSaveButton(btn, 'check', 'Saved');
+    else setSaveButton(btn, 'bookmark-plus', 'Save to BattleDex');
   } catch {
     if (fight !== recentFight) return;
     btn.disabled = true;
-    btn.textContent = "Can't save";
+    setSaveButton(btn, 'bookmark-plus', "Can't save");
   }
 }
 
@@ -128,11 +154,27 @@ function showResult(data, fighterA, fighterB) {
   document.getElementById('result-reasoning').textContent = reasoning;
   setFighterImage('result-image-a', imageA, fighterA);
   setFighterImage('result-image-b', imageB, fighterB);
-  document.getElementById('result-fighters').hidden = !(imageA || imageB);
+  document.getElementById('name-a').textContent = fighterA;
+  document.getElementById('name-b').textContent = fighterB;
   saveStatus.textContent = '';
   updateSaveButton('A');
   updateSaveButton('B');
+
+  // Mark the winner. winnerSide comes from the API; fall back to name match.
+  const side =
+    data.winnerSide === 'A' || data.winnerSide === 'B'
+      ? data.winnerSide
+      : winner === fighterA ? 'A' : winner === fighterB ? 'B' : null;
+  const figs = { A: document.getElementById('fig-a'), B: document.getElementById('fig-b') };
+  figs.A.classList.remove('is-winner', 'is-loser');
+  figs.B.classList.remove('is-winner', 'is-loser');
   showView('result');
+  void figs.A.offsetWidth; // force reflow so the entrance animations replay
+  if (side) {
+    figs[side].classList.add('is-winner');
+    figs[side === 'A' ? 'B' : 'A'].classList.add('is-loser');
+  }
+  setSpotlight(side);
 }
 
 function showError(message) {
@@ -141,6 +183,8 @@ function showError(message) {
 }
 
 async function runFight(fighterA, fighterB) {
+  document.getElementById('loading-a').textContent = fighterA;
+  document.getElementById('loading-b').textContent = fighterB;
   showView('loading');
   try {
     const res = await fetch('/api/fight', {
@@ -172,6 +216,7 @@ document.getElementById('fight-form').addEventListener('submit', (e) => {
   inputB.value = '';
   formHint.hidden = true;
   formHint.textContent = '';
+  updateCounters();
   runFight(fighterA, fighterB);
 });
 
@@ -190,11 +235,20 @@ const MAX_NAME_LENGTH = 50;
 const formHint = document.getElementById('form-hint');
 const NAME_TOO_LONG_MESSAGE = `Hold, mighty challenger! Thy name has outgrown the arena banner. The herald can bellow only ${MAX_NAME_LENGTH} letters, so trim thy title!`;
 
+// Live "n / 50" counters next to each input.
+function updateCounters() {
+  document.getElementById('count-a').textContent =
+    document.getElementById('fighter-a').value.length + ' / ' + MAX_NAME_LENGTH;
+  document.getElementById('count-b').textContent =
+    document.getElementById('fighter-b').value.length + ' / ' + MAX_NAME_LENGTH;
+}
+
 for (const id of ['fighter-a', 'fighter-b']) {
   document.getElementById(id).addEventListener('input', (e) => {
     const atLimit = e.target.value.length >= MAX_NAME_LENGTH;
     formHint.textContent = atLimit ? NAME_TOO_LONG_MESSAGE : '';
     formHint.hidden = !atLimit;
+    updateCounters();
   });
 }
 
@@ -205,6 +259,7 @@ if (location.hash === '#rematch') {
   if (saved) {
     document.getElementById('fighter-a').value = saved.fighterA;
     document.getElementById('fighter-b').value = saved.fighterB;
+    updateCounters();
   }
   showView('form');
 }

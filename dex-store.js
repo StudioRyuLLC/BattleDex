@@ -73,3 +73,15 @@ function compressImage(src) {
   }
   return compressCache.get(src);
 }
+
+// Build an inline SVG icon that references the sprite in the page markup.
+function makeIcon(id) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'icon');
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttribute('href', `#i-${id}`);
+  svg.append(use);
+  return svg;
+}
