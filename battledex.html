@@ -21,6 +21,7 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></symbol>
     <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
     <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
   </svg>
 
@@ -28,10 +29,6 @@
     <a class="brand" href="index.html">
       <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
       <span>Battleground</span>
-    </a>
-    <a class="button nav-btn" href="battledex.html" aria-current="page">
-      <svg class="icon" aria-hidden="true"><use href="#i-book"/></svg>
-      <span>BattleDex</span>
     </a>
   </header>
 
@@ -52,13 +49,14 @@
           <svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>
           <span>Rematch</span>
         </a>
-        <a href="index.html" id="dex-new" class="button primary">
+        <button type="button" id="dex-new" class="primary">
           <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
-          <span>New fight</span>
-        </a>
+          <span id="dex-new-label">New fight</span>
+        </button>
       </div>
     </div>
 
+    <p id="dex-select-hint" class="dex-select-hint" role="status" aria-live="polite" hidden></p>
     <p id="dex-empty">No saved fighters yet. Save one from a fight result.</p>
     <div id="dex-grid" class="dex-grid"></div>
     <button type="button" id="dex-clear" class="danger" hidden>
@@ -84,11 +82,39 @@
     </div>
   </div>
 
+  <button type="button" id="dex-float-fight" class="primary float-fight" hidden>
+    <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
+    <span>Fight (2)</span>
+  </button>
+
+  <div id="confirm-fight" class="confirm" role="dialog" aria-modal="true" aria-labelledby="fight-title" hidden>
+    <div class="confirm-box">
+      <svg class="icon confirm-icon icon-fight" aria-hidden="true"><use href="#i-swords"/></svg>
+      <h2 id="fight-title" class="confirm-title">Sound the horn?</h2>
+      <ul class="matchup-list">
+        <li><span class="matchup-tag tag-a">Fighter A</span><span id="confirm-a" class="matchup-name"></span></li>
+        <li class="matchup-vs" aria-hidden="true">vs</li>
+        <li><span class="matchup-tag tag-b">Fighter B</span><span id="confirm-b" class="matchup-name"></span></li>
+      </ul>
+      <div class="confirm-actions">
+        <button type="button" id="fight-cancel">
+          <span>Cancel</span>
+        </button>
+        <button type="button" id="fight-go" class="primary">
+          <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
+          <span>Fight</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <footer class="foot" aria-hidden="true">
     <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="#8F7246"/></svg>
   </footer>
 
+  <script src="validate-fighters.js"></script>
   <script src="dex-store.js"></script>
+  <script src="back-to-top.js"></script>
   <script src="battledex.js"></script>
 </body>
 </html>

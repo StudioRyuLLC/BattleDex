@@ -39,6 +39,29 @@ function saveRecentFight(fight) {
   }
 }
 
+// Fighters picked on the BattleDex page, handed to index.html (#fight) so it
+// can start a normal fight without retyping names. Read once, then cleared.
+const PENDING_KEY = 'battleground-pending-fight';
+
+function savePendingFight(fighterA, fighterB) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify({ fighterA, fighterB }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function takePendingFight() {
+  try {
+    const f = JSON.parse(sessionStorage.getItem(PENDING_KEY));
+    sessionStorage.removeItem(PENDING_KEY);
+    return f && f.fighterA ? f : null; // fighterB is empty for a single-fighter challenge
+  } catch {
+    return null;
+  }
+}
+
 // --- Image compression (Stage 5) ---
 // Fighter art arrives as ~260 KB 1024px JPEG data URIs; localStorage holds
 // ~5 MB total. Redraw onto an off-screen canvas at thumbnail size and

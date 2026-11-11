@@ -1299,3 +1299,311 @@ input[type='text']:focus {
     margin-left: 0;
   }
 }
+
+/* ---------- Stage 7: header nav, card selection, mobile masthead ---------- */
+.header-nav,
+.result-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.result-nav[hidden] {
+  display: none;
+}
+
+.dex-select-hint {
+  margin: 16px 0 0;
+  color: var(--gold-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+.card-select {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: inherit;
+  font: inherit;
+}
+
+.card-select:hover {
+  background: transparent;
+}
+
+.card-select .card-name {
+  display: block;
+}
+
+.card.is-selected {
+  background: linear-gradient(180deg, #3A2B14, #1E160B);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 0 5px #17120D, 0 0 0 7px var(--gold), 0 0 34px rgba(240, 201, 120, 0.4);
+}
+
+.card.is-selected .card-no {
+  color: var(--gold-pale);
+}
+
+#dex-new:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    gap: 4px 8px;
+    padding: 8px 14px;
+  }
+
+  .brand {
+    min-height: 36px;
+    gap: 8px;
+    font-size: 14px;
+    letter-spacing: 0.14em;
+  }
+
+  .header-nav .button,
+  .header-nav button {
+    min-height: 40px;
+    padding: 0 12px;
+    gap: 6px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  .content {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 20px 0 4px;
+  }
+
+  .dex-head {
+    gap: 12px;
+    padding: 12px 0 16px;
+  }
+
+  .page-title {
+    margin: 6px 0 4px;
+    font-size: clamp(28px, 9vw, 36px);
+  }
+
+  .dex-title .eyebrow {
+    font-size: 11px;
+  }
+
+  .dex-count {
+    font-size: 16px;
+  }
+
+  .dex-grid {
+    margin-top: 24px;
+  }
+
+  .dex-actions .button,
+  .dex-actions button {
+    padding: 0 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .actions {
+    margin-top: 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Keep the three result-page nav buttons on one row under the brand. */
+  .header-nav:has(.result-nav:not([hidden])) {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+  }
+
+  .result-nav {
+    display: contents;
+  }
+
+  .result-nav:not([hidden]) ~ .nav-btn,
+  .result-nav:not([hidden]) .nav-btn {
+    flex: 1 1 0;
+    padding: 0 6px;
+  }
+
+  .result-nav .icon {
+    display: none;
+  }
+}
+
+/* ---------- Stage 7.1: challengeable fighters, centered mobile masthead ---------- */
+.fighter .stage {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.fighter .stage:hover,
+.fighter .stage:focus-visible {
+  filter: drop-shadow(0 0 14px rgba(240, 201, 120, 0.55));
+}
+
+.fighter .stage:hover .frame,
+.fighter .stage:focus-visible .frame {
+  outline: 2px dashed var(--gold);
+  outline-offset: 4px;
+}
+
+.challenge-hint {
+  margin: 20px 0 0;
+  color: var(--gold-muted);
+  font-family: var(--font-head);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.challenge-hint::before {
+  content: '\2694\FE0E  ';
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .header-nav {
+    justify-content: center;
+  }
+
+  .result-nav .nav-btn,
+  .header-nav .nav-btn {
+    white-space: nowrap;
+  }
+
+  .header-nav:has(.result-nav:not([hidden])) {
+    justify-content: center;
+  }
+
+  .header-nav:has(.result-nav:not([hidden])) .nav-btn {
+    letter-spacing: 0.05em;
+  }
+
+  .challenge-hint {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* ---------- Stage 7.2: fight confirmation modal ---------- */
+.confirm-icon.icon-fight {
+  color: var(--gold);
+}
+
+.matchup-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.matchup-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.matchup-tag {
+  color: var(--gold-muted);
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.matchup-name {
+  color: var(--text-bright);
+  font-family: var(--font-head);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+
+.matchup-vs {
+  color: var(--ember);
+  font-family: var(--font-deco);
+  font-size: 16px;
+}
+
+/* ---------- Stage 7.3: floating controls ---------- */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Floating controls sit at z-index 40; the dialog (.confirm) is 50. */
+.to-top,
+.float-fight {
+  position: fixed;
+  z-index: 40;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.to-top {
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid var(--gold-muted);
+  border-radius: 50%;
+  background: #17120D;
+  color: var(--gold);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 18px rgba(226, 140, 60, 0.35), 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.to-top:hover {
+  background: #2A1F12;
+  border-color: var(--gold);
+}
+
+.to-top .icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Centered so it never meets the Back-to-top button in the right corner. */
+.float-fight {
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 24px;
+}
+
+.float-fight:hover {
+  transform: translateX(-50%) translateY(-1px);
+}
+
+body.modal-open .to-top,
+body.modal-open .float-fight {
+  display: none;
+}
+
+/* body overflow alone doesn't reach the viewport because html sets overflow-x: clip */
+html:has(body.modal-open) {
+  overflow: hidden;
+}

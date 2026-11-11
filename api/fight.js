@@ -8,6 +8,7 @@ const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT } = require("./judge-prompt");
 
 const { buildImagePrompt } = require("./art-style");
+const { validateMatchup, PROTECTED_MESSAGE } = require("../validate-fighters");
 
 const MODEL = "claude-sonnet-5-5";
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
@@ -17,6 +18,9 @@ const MAX_NAME_LENGTH = 50;
 const VerdictSchema = z.object({
   winner: z.enum(["A", "B"]),
   reasoning: z.string(),
+  // Safeguard for protected franchise characters the deterministic list cannot know.
+  // Piggybacks on the verdict call: no extra paid request.
+  protected_side: z.enum(["none", "A", "B", "both"]),
 });
 
 // --- Rate limiting: 5 requests/minute per IP (project-brief.md §5) ---
@@ -78,6 +82,12 @@ module.exports = async (req, res) => {
       .json({ error: `By my lute, that name is a saga! The herald can only bellow ${MAX_NAME_LENGTH} letters or fewer. Trim thy title, brave soul!` });
   }
 
+  // Repeat the client checks server-side (identical fighters, known protected characters).
+  const matchup = validateMatchup(fighterA, fighterB);
+  if (!matchup.ok) {
+    return res.status(422).json({ code: matchup.code, error: matchup.message });
+  }
+
   // 3. Verdict + both images, in parallel.
   const [verdictR, imageAR, imageBR] = await Promise.allSettled([
     getVerdict(fighterA, fighterB),
@@ -91,6 +101,11 @@ module.exports = async (req, res) => {
       code: "verdict_failed",
       error: "Gasp! The Grand Judge has fallen asleep on the scrolls and no verdict was sung. Rouse them and call the fight again!",
     });
+  }
+
+  // The judge flagged a protected franchise character: reject, discard the images.
+  if (verdictR.value.protected_side !== "none") {
+    return res.status(422).json({ code: "invalid_matchup", error: PROTECTED_MESSAGE });
   }
 
   // Moderation-blocked is its own case, checked before generic image failure.

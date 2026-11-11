@@ -63,6 +63,7 @@ function showView(name) {
   if (name === 'loading') startLoadingMessages();
   else stopLoadingMessages();
   if (name !== 'result') setSpotlight(null);
+  document.getElementById('result-nav').hidden = name !== 'result';
 }
 
 // Storage helpers (loadDex/saveDex/recent fight) come from dex-store.js.
@@ -89,25 +90,19 @@ function sideImage(side) {
 
 // BattleDex stores the compressed image (Stage 5), so "already saved" is
 // checked against the compressed version. Compression is deterministic.
-async function updateSaveButton(side) {
-  const fight = recentFight;
+// "Already saved" is decided by normalized fighter name (trimmed, case-insensitive),
+// so a BattleDex fighter re-entered in a new fight never gets a second entry
+// and its existing portrait is never overwritten.
+function updateSaveButton(side) {
   const image = sideImage(side);
   const btn = saveButtons[side];
   btn.hidden = !image;
   if (!image) return;
-  btn.disabled = true; // until we know whether it's already saved
-  try {
-    const compressed = await compressImage(image);
-    if (fight !== recentFight) return; // a newer fight replaced this one
-    const saved = loadDex().some((f) => f.image === compressed);
-    btn.disabled = saved;
-    if (saved) setSaveButton(btn, 'check', 'Saved');
-    else setSaveButton(btn, 'bookmark-plus', 'Save to BattleDex');
-  } catch {
-    if (fight !== recentFight) return;
-    btn.disabled = true;
-    setSaveButton(btn, 'bookmark-plus', "Can't save");
-  }
+  const label = side === 'A' ? recentFight.fighterA : recentFight.fighterB;
+  const saved = isNameSaved(loadDex(), label);
+  btn.disabled = saved;
+  if (saved) setSaveButton(btn, 'check', 'Already in BattleDex');
+  else setSaveButton(btn, 'bookmark-plus', 'Save to BattleDex');
 }
 
 async function saveFighter(side) {
@@ -118,7 +113,7 @@ async function saveFighter(side) {
   try {
     const compressed = await compressImage(image);
     const dex = loadDex();
-    if (!dex.some((f) => f.image === compressed)) {
+    if (!isNameSaved(dex, label)) {
       const ok = saveDex([...dex, { label, image: compressed }]);
       saveStatus.textContent = ok ? '' : "Couldn't save: browser storage is full. Delete some fighters from the BattleDex.";
     }
@@ -194,6 +189,12 @@ async function runFight(fighterA, fighterB) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      if (data.code === 'invalid_matchup') {
+        // Server-side matchup rejection: give the names back so they can be fixed.
+        fillForm(fighterA, fighterB);
+        showFormHint(data.error);
+        return;
+      }
       // 429 / 400 / 422 / 502 all carry a clear message from the API.
       showError(data.error || 'Zounds! Some mischievous gremlin has snuffed the torches and the tale was lost. Take heart and try again!');
       return;
@@ -212,6 +213,11 @@ document.getElementById('fight-form').addEventListener('submit', (e) => {
   // then clear the form so "Fight again" starts with empty fields.
   const fighterA = inputA.value.trim();
   const fighterB = inputB.value.trim();
+  const check = validateMatchup(fighterA, fighterB);
+  if (!check.ok) {
+    showFormHint(check.message); // names stay in the inputs for correction
+    return;
+  }
   inputA.value = '';
   inputB.value = '';
   formHint.hidden = true;
@@ -220,7 +226,46 @@ document.getElementById('fight-form').addEventListener('submit', (e) => {
   runFight(fighterA, fighterB);
 });
 
-document.getElementById('result-again').addEventListener('click', () => showView('form'));
+function showFormHint(message) {
+  formHint.textContent = message;
+  formHint.hidden = !message;
+}
+
+// Challenge from the result page: clicked fighter becomes Fighter A, B left empty.
+for (const [id, side] of [['fig-a', 'A'], ['fig-b', 'B']]) {
+  const stage = document.querySelector('#' + id + ' .stage');
+  const challenge = () => {
+    if (!recentFight) return;
+    fillForm(side === 'A' ? recentFight.fighterA : recentFight.fighterB, '');
+    document.getElementById('fighter-b').focus();
+  };
+  stage.setAttribute('aria-label', 'Challenge this fighter to a new bout');
+  stage.addEventListener('click', challenge);
+  stage.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      challenge();
+    }
+  });
+}
+
+// Form fill helper shared by Rematch (prefilled) and Fight again (empty).
+function fillForm(a, b) {
+  document.getElementById('fighter-a').value = a;
+  document.getElementById('fighter-b').value = b;
+  formHint.hidden = true;
+  formHint.textContent = '';
+  updateCounters();
+  showView('form');
+}
+
+// Rematch: prefill from the most recent fight (editable, not auto-submitted).
+document.getElementById('nav-rematch').addEventListener('click', () => {
+  if (recentFight) fillForm(recentFight.fighterA, recentFight.fighterB);
+  else fillForm('', '');
+});
+document.getElementById('nav-again').addEventListener('click', () => fillForm('', ''));
+document.getElementById('result-again').addEventListener('click', () => fillForm('', ''));
 document.getElementById('error-again').addEventListener('click', () => showView('form'));
 
 // Coming back from battledex.html via "Back to recent fight".
@@ -262,4 +307,29 @@ if (location.hash === '#rematch') {
     updateCounters();
   }
   showView('form');
+}
+
+// BattleDex "Fight": two picked fighters start a normal fight right away.
+if (location.hash === '#fight') {
+  const pending = takePendingFight();
+  history.replaceState(null, '', location.pathname); // reload won't refight
+  if (pending && pending.fighterB) {
+    const check = validateMatchup(pending.fighterA, pending.fighterB);
+    if (check.ok) runFight(pending.fighterA, pending.fighterB);
+    else {
+      fillForm(pending.fighterA, pending.fighterB);
+      showFormHint(check.message);
+    }
+  }
+}
+
+// BattleDex "Challenge new fighter": selected fighter becomes A, B left empty. No auto-fight.
+if (location.hash === '#challenge') {
+  const pending = takePendingFight();
+  history.replaceState(null, '', location.pathname);
+  if (pending) {
+    fillForm(pending.fighterA, '');
+    document.getElementById('fighter-b').focus();
+    if (isProtectedName(pending.fighterA)) showFormHint(PROTECTED_MESSAGE);
+  }
 }
