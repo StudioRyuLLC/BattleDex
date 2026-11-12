@@ -141,6 +141,18 @@ function setFighterImage(id, src, label) {
   }
 }
 
+// Victor is always displayed first (top when stacked, left side-by-side). Fighter A/B
+// identities (ids, names, save buttons, challenge handlers) stay attached to their
+// own elements; only the DOM order changes. Moving real nodes keeps tab order in
+// step with the visual order.
+function placeVictorFirst(side) {
+  const box = document.getElementById('result-fighters');
+  const disc = box.querySelector('.vs-disc');
+  const first = document.getElementById(side === 'B' ? 'fig-b' : 'fig-a');
+  box.prepend(first);
+  first.after(disc);
+}
+
 function showResult(data, fighterA, fighterB) {
   const { winner, reasoning, imageA, imageB } = data;
   recentFight = { data, fighterA, fighterB };
@@ -163,13 +175,14 @@ function showResult(data, fighterA, fighterB) {
   const figs = { A: document.getElementById('fig-a'), B: document.getElementById('fig-b') };
   figs.A.classList.remove('is-winner', 'is-loser');
   figs.B.classList.remove('is-winner', 'is-loser');
+  placeVictorFirst(side);
   showView('result');
   void figs.A.offsetWidth; // force reflow so the entrance animations replay
   if (side) {
     figs[side].classList.add('is-winner');
     figs[side === 'A' ? 'B' : 'A'].classList.add('is-loser');
   }
-  setSpotlight(side);
+  setSpotlight(side ? 'A' : null); // the victor is always shown first (left / top)
 }
 
 function showError(message) {

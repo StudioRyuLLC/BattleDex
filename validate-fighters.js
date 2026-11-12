@@ -22,6 +22,9 @@
   // so ordinary words and names ("Barney", "Mario the baker", Thor, Dracula,
   // Robin Hood, Sherlock Holmes) are never rejected by this list.
   const PROTECTED_PATTERNS = [
+    // A name that cites its franchise is a franchise character, even for mythological names
+    // ("Marvel Thor"). Plain mythological names are never matched.
+    /(^| )(marvel|mcu|avengers|dc comics|disney|pixar|dreamworks|nintendo|star wars|pokemon|harry potter|warcraft|world of warcraft)( |$)/,
     /\bbarney (the|and|&) (purple )?(dinosaur|friends)\b/, /\bpurple dinosaur barney\b/,
     /\bmickey mouse\b/, /\bminnie mouse\b/, /\bdonald duck\b/, /\bgoofy dog\b/,
     /\bwinnie the pooh\b/, /\bbugs bunny\b/, /\bdaffy duck\b/, /\bspongebob\b/, /\bpatrick star\b/,

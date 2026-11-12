@@ -116,10 +116,13 @@ module.exports = async (req, res) => {
   if (blocked) {
     const [side] = blocked;
     const name = side === "A" ? fighterA : fighterB;
+    // Provider safety-system rejection (can be a false positive on names that also
+    // belong to modern franchises). Log which fighter so it can be diagnosed.
+    console.warn(`Image moderation blocked side ${side}: "${name}"`);
     return res.status(422).json({
       code: "moderation_blocked",
       side,
-      error: `Halt! The Gatekeepers of the Arena have barred "${name}" from the ring, and no amount of bribery will move them. Send a different challenger!`,
+      error: `The portrait painter refused to paint "${name}" this time. That is the image service's own safety filter, not a ruling against this fighter. Try again, or word the challenger a little differently (for example "armored warriors" instead of a bare name).`,
     });
   }
 

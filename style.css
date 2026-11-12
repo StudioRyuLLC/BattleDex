@@ -1607,3 +1607,33 @@ body.modal-open .float-fight {
 html:has(body.modal-open) {
   overflow: hidden;
 }
+
+/* ---------- Stage 7.4: version switch link ---------- */
+.version-switch {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.version-switch a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--gold-muted);
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.version-switch a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--bronze);
+}
+
+.version-switch + .foot {
+  padding-top: 0;
+}
