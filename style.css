@@ -2168,3 +2168,44 @@ body.modal-open .settings-fab {
     width: 220px;
   }
 }
+
+
+/* ---------- Stage 8.9: Background Music slider ---------- */
+.settings-slider {
+  margin-bottom: 16px;
+}
+
+.slider-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  color: var(--gold-muted);
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.slider-label output {
+  min-width: 3.5em;
+  color: var(--text-bright);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-align: right;
+}
+
+.settings-slider input[type='range'] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  accent-color: #D5A04A;
+  cursor: pointer;
+}
+
+.settings-slider .settings-note {
+  margin: 0;
+}

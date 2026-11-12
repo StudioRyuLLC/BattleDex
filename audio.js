@@ -1,25 +1,48 @@
 // Stage 8 Audio Manager. Everything is synthesized with the Web Audio API (no audio
 // files, so nothing to license) plus the browser's speechSynthesis for voice.
 //
-// Scenes: 'home' (war-drum ambience), 'dex' (quieter, same identity), 'battle' (drums +
-// skirmish effects), 'victory' (ceremonial fanfare, then quiet ambience), 'quiet', 'silent'.
+// Scenes: 'home' / 'quiet' (Warrior MP3), 'dex' (Epic Battle MP3), 'battle' / 'victory' (Taiko MP3; battle adds the
+// synthesized skirmish effects, victory adds the synthesized fanfare), 'silent'.
+// Background music is MP3-only: if a track cannot load, that scene is simply silent (effects,
+// fanfare and narration still work).
 // Nothing plays until the browser allows it: the AudioContext is created on the first
 // user gesture only, and the gesture listeners detach once audio is running.
 const BGAudio = (function () {
-  const MUSIC_LEVEL = 0.2;
-  const DUCKED_LEVEL = 0.07;
+  // ===== Music configuration (edit here) =====
+  // MP3 background music. Everything about the recordings lives in this one object.
+  //   startOffset: seconds to skip at the start of every play-through (0 until measured).
+  //   volume:      per-track trim (1 = unchanged), multiplied by the player's "Background Music"
+  //                slider (BGSettings musicVolume, default 50%). Independent of narration (the
+  //                browser voice) and of the synthesized sound effects / fanfare.
+  //   sceneTrack:  which track each scene uses; the same track is kept across scenes
+  //                (e.g. battle -> victory) instead of being restarted.
+  //   fadeOutSeconds: smooth fade over the final seconds of the recording.
+  //   gapSeconds:  silence between repetitions.
+  //   duckFactor:  music level multiplier while speech plays (restored smoothly afterwards).
+  //   enabled:     false turns background music off entirely.
+  const MUSIC_CONFIG = {
+    enabled: true,
+    tracks: {
+      warrior: { src: 'assets/audio/music/hitslab-warrior-soldier-fighting-music-489236.mp3', startOffset: 0, volume: 1 },
+      taiko: { src: 'assets/audio/music/alec_koff-japan-taiko-490663.mp3', startOffset: 0, volume: 1 },
+      epic: { src: 'assets/audio/music/yevhenastafiev-epic-epic-battle-607250.mp3', startOffset: 0, volume: 1 },
+    },
+    sceneTrack: { home: 'warrior', quiet: 'warrior', dex: 'epic', battle: 'taiko', victory: 'taiko' },
+    fadeOutSeconds: 3,
+    gapSeconds: 3,
+    duckFactor: 0.3,
+  };
+
   const SFX_LEVEL = 0.5;
   const FANFARE_MS = 2900;
   const MAX_SFX_EVENTS = 6; // simultaneous combat sounds, so it never becomes a wall of noise
 
   let ctx = null;
   let master = null;
-  let musicBus = null;
   let sfxBus = null;
   let noiseBuffer = null;
   let wantedScene = 'silent';
   let currentScene = null;
-  let musicVoice = null; // { stop(fade), scene }
   let sfxSession = null; // { stop() } active only during battle
   let fanfareTimer = null;
   let speaking = 0;
@@ -27,6 +50,9 @@ const BGAudio = (function () {
   let userActive = false;
   let voiceSeq = 0; // increments whenever a new music voice starts (restart detection in tests)
   let fighterTags = new Set();
+  let mp3Bus = null; // all MP3 music passes through here (ducking happens on this bus)
+  let musicScene = null; // scene whose music is currently playing (mp3 or synthesized)
+  const mp3 = { key: null, state: 'idle', token: 0, fading: false, timers: new Set(), els: {} }; // state: idle | starting | playing | gap
 
   const mode = () => BGSettings.get().audio;
   const musicOn = () => mode() === 'all' || mode() === 'music';
@@ -73,12 +99,12 @@ const BGAudio = (function () {
     master = ctx.createGain();
     master.gain.value = 1;
     master.connect(limiter);
-    musicBus = ctx.createGain();
-    musicBus.gain.value = MUSIC_LEVEL;
-    musicBus.connect(master);
     sfxBus = ctx.createGain();
     sfxBus.gain.value = SFX_LEVEL;
     sfxBus.connect(master);
+    mp3Bus = ctx.createGain();
+    mp3Bus.gain.value = 1;
+    mp3Bus.connect(master);
     const len = ctx.sampleRate * 2;
     noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
@@ -190,182 +216,6 @@ const BGAudio = (function () {
       o.connect(og).connect(lp);
       o.start(t);
       o.stop(t + dur + 0.1);
-    });
-  }
-
-  // ---------- music voices ----------
-  // Each voice returns { stop(fadeSeconds) }; its nodes are all disconnected on stop.
-  function makeVoice(build) {
-    const out = ctx.createGain();
-    out.gain.value = 0.0001;
-    out.connect(musicBus);
-    const timers = [];
-    const nodes = [];
-    const api = {
-      out,
-      timers,
-      nodes,
-      stopped: false,
-      fadeIn(sec, level) {
-        out.gain.cancelScheduledValues(ctx.currentTime);
-        out.gain.setValueAtTime(0.0001, ctx.currentTime);
-        out.gain.linearRampToValueAtTime(level || 1, ctx.currentTime + sec);
-      },
-      stop(sec) {
-        if (api.stopped) return;
-        api.stopped = true;
-        timers.forEach((t) => {
-          clearTimeout(t);
-          clearInterval(t);
-        });
-        const now = ctx.currentTime;
-        out.gain.cancelScheduledValues(now);
-        out.gain.setValueAtTime(Math.max(out.gain.value, 0.0001), now);
-        out.gain.linearRampToValueAtTime(0.0001, now + sec);
-        setTimeout(() => {
-          nodes.forEach((n) => {
-            try {
-              n.stop();
-            } catch {
-              // already stopped
-            }
-          });
-          try {
-            out.disconnect();
-          } catch {
-            // ignore
-          }
-        }, sec * 1000 + 80);
-      },
-    };
-    build(api);
-    return api;
-  }
-
-  function drone(api, root, cutoff, level) {
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = cutoff;
-    lp.Q.value = 0.7;
-    lp.connect(api.out);
-    const mk = (type, freq, gain, detune) => {
-      const o = ctx.createOscillator();
-      o.type = type;
-      o.frequency.value = freq;
-      o.detune.value = detune || 0;
-      const g = ctx.createGain();
-      g.gain.value = gain * level;
-      o.connect(g).connect(lp);
-      o.start();
-      api.nodes.push(o);
-    };
-    mk('sawtooth', root, 0.5, -6);
-    mk('sawtooth', root, 0.45, 7);
-    mk('sine', root * 1.5, 0.4, 0); // fifth
-    mk('sine', root / 2, 0.9, 0); // sub
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.06;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = cutoff * 0.35;
-    lfo.connect(lfoGain).connect(lp.frequency);
-    lfo.start();
-    api.nodes.push(lfo);
-  }
-
-  // A distant war horn: slow swell, falling answer, softened and echoed so it sounds far away.
-  function distantHorn(api, root, level) {
-    const t = ctx.currentTime + 0.05;
-    const send = ctx.createGain();
-    send.gain.value = level;
-    const far = ctx.createBiquadFilter();
-    far.type = 'lowpass';
-    far.frequency.value = 900;
-    const delay = ctx.createDelay(1);
-    delay.delayTime.value = 0.42;
-    const fb = ctx.createGain();
-    fb.gain.value = 0.38;
-    delay.connect(fb).connect(delay);
-    send.connect(far);
-    far.connect(api.out);
-    far.connect(delay);
-    delay.connect(api.out);
-    played.horn = (played.horn || 0) + 1;
-    const f = root * 2; // e.g. 110 Hz
-    brass(send, t, f, 2.4, 0.5, 0.9);
-    brass(send, t + 1.7, f * 0.89, 2.2, 0.4, 0.8);
-    setTimeout(() => {
-      try {
-        send.disconnect();
-        far.disconnect();
-        delay.disconnect();
-      } catch {
-        // ignore
-      }
-    }, 7000);
-  }
-
-  // Foreboding war-drum ambience. Variation: velocity, timing jitter, skipped and ghost
-  // hits, occasional fills, and a distant horn every so often.
-  function warDrumVoice(p) {
-    return makeVoice((api) => {
-      drone(api, p.root, p.cutoff, p.droneLevel);
-      const beat = 60 / p.bpm; // one drum pulse
-      let next = ctx.currentTime + 0.3;
-      let i = 0;
-      // 8-pulse phrase: strong, weak, medium, rest, strong, weak, medium, answer
-      const phrase = [1, 0.5, 0.75, 0, 1, 0.45, 0.7, 0.3];
-      const tick = () => {
-        if (api.stopped) return;
-        while (next < ctx.currentTime + 0.25) {
-          const s = i % phrase.length;
-          const v = phrase[s];
-          const skip = v > 0 && v < 0.6 && Math.random() < 0.25;
-          if (v > 0 && !skip) warDrum(api.out, next + rand(-0.012, 0.012), p.drum * v * rand(0.82, 1.12), rand(-0.15, 0.15));
-          if (v === 0 && Math.random() < 0.22) warDrum(api.out, next + beat * 0.5, p.drum * 0.28, rand(-0.3, 0.3)); // ghost hit
-          if (s === 7 && i % 32 === 31 && !p.noFill) {
-            [0, 0.18, 0.34].forEach((o, k) => tom(api.out, next + beat * 0.55 + o, p.drum * (0.5 + k * 0.12), 150 - k * 14, rand(-0.4, 0.4)));
-          }
-          next += beat;
-          i++;
-        }
-      };
-      api.timers.push(setInterval(tick, 50));
-      tick();
-      if (p.hornEvery) {
-        const horn = () => {
-          if (api.stopped) return;
-          distantHorn(api, p.root, p.horn);
-          api.timers.push(setTimeout(horn, rand(p.hornEvery[0], p.hornEvery[1]) * 1000));
-        };
-        api.timers.push(setTimeout(horn, rand(7, 12) * 1000));
-      }
-    });
-  }
-
-  function battleVoice() {
-    return makeVoice((api) => {
-      drone(api, 65.4, 560, 0.7);
-      const bpm = 132;
-      const step = 60 / bpm / 4; // 16th notes
-      let next = ctx.currentTime + 0.1;
-      let i = 0;
-      const kick = [0, 3, 4, 8, 10, 12];
-      const tomHits = [6, 14];
-      const tick = () => {
-        if (api.stopped) return;
-        while (next < ctx.currentTime + 0.18) {
-          const s = i % 16;
-          if (kick.includes(s)) warDrum(api.out, next + rand(-0.006, 0.006), (s === 0 ? 1 : 0.7) * rand(0.85, 1.1), rand(-0.2, 0.2));
-          if (tomHits.includes(s)) tom(api.out, next, rand(0.6, 0.85), 175 - (s === 14 ? 25 : 0), rand(-0.5, 0.5));
-          if (s % 2 === 1 && Math.random() < 0.3) tom(api.out, next, 0.3, 210, rand(-0.5, 0.5));
-          if (s === 15 && i % 64 === 63) [0, 1, 2, 3].forEach((k) => tom(api.out, next + k * step * 0.5, 0.55 + k * 0.1, 200 - k * 20, rand(-0.5, 0.5)));
-          if (i % 32 === 0) [65.4, 77.8, 98].forEach((f) => brass(api.out, next, f * 2, 0.9, 0.09, 0.12)); // dark brass stab
-          next += step;
-          i++;
-        }
-      };
-      api.timers.push(setInterval(tick, 40));
-      tick();
     });
   }
 
@@ -705,38 +555,231 @@ const BGAudio = (function () {
     }
   }
 
-  // ---------- scene control ----------
-  function stopMusic(fade) {
-    if (musicVoice) {
-      musicVoice.stop(fade);
-      musicVoice = null;
+  // ---------- MP3 background music (plays through the same context, buses and lifecycle) ----------
+  function mp3Supported() {
+    return MUSIC_CONFIG.enabled && typeof Audio === 'function' && !!ctx && !!ctx.createMediaElementSource;
+  }
+
+  function mp3Later(fn, ms) {
+    const id = setTimeout(() => {
+      mp3.timers.delete(id);
+      fn();
+    }, ms);
+    mp3.timers.add(id);
+    return id;
+  }
+
+  function mp3ClearTimers() {
+    mp3.timers.forEach((id) => {
+      clearTimeout(id);
+      clearInterval(id);
+    });
+    mp3.timers.clear();
+  }
+
+  function mp3Track(key) {
+    let t = mp3.els[key];
+    if (t) return t;
+    const el = new Audio();
+    el.preload = 'auto';
+    el.loop = false; // we handle the natural ending, the gap and the restart ourselves
+    el.src = MUSIC_CONFIG.tracks[key].src;
+    const gain = ctx.createGain();
+    gain.gain.value = 0; // silent until playback has actually started
+    ctx.createMediaElementSource(el).connect(gain).connect(mp3Bus);
+    t = { el, gain, failed: false };
+    el.addEventListener('error', () => mp3Failed(key));
+    mp3.els[key] = t;
+    return t;
+  }
+
+  // A track that cannot load or decode is marked failed and its scenes stay silent (no synthesized
+  // replacement). Sound effects, fanfare and narration are unaffected.
+  function mp3Failed(key) {
+    const t = mp3.els[key];
+    if (!t || t.failed) return;
+    t.failed = true;
+    if (mp3.key === key) {
+      mp3Halt(0.05);
+      musicScene = null;
     }
   }
 
-  const HOME = { root: 55, bpm: 54, drum: 1, cutoff: 260, droneLevel: 0.5, hornEvery: [18, 34], horn: 0.5 };
-  const DEX = { root: 49, bpm: 46, drum: 0.55, cutoff: 200, droneLevel: 0.45, hornEvery: [40, 70], horn: 0.3, noFill: true };
+  // Level of a track = its config trim x the player's Background Music slider.
+  function trackLevel(key) {
+    return MUSIC_CONFIG.tracks[key].volume * BGSettings.get().musicVolume;
+  }
 
-  function startMusic(scene, fadeIn) {
-    stopMusic(0.6);
-    let v = null;
-    let level = 1;
-    if (scene === 'home') v = warDrumVoice(HOME);
-    else if (scene === 'dex') v = warDrumVoice(DEX);
-    else if (scene === 'battle') v = battleVoice();
-    else if (scene === 'quiet') {
-      v = warDrumVoice({ ...HOME, drum: 0.6, hornEvery: null });
-      level = 0.6;
+  // Slider moved: adjust the playing track smoothly, without restarting or seeking it.
+  function applyMusicVolume() {
+    if (!ctx || !mp3.key || mp3.state !== 'playing' || mp3.fading) return; // a gap/fade picks the new level up itself
+    const t = mp3.els[mp3.key];
+    const now = ctx.currentTime;
+    t.gain.gain.cancelScheduledValues(now);
+    t.gain.gain.setValueAtTime(t.gain.gain.value, now);
+    t.gain.gain.setTargetAtTime(trackLevel(mp3.key), now, 0.04);
+  }
+
+  // Fade the active track out and stop it. Cancels every pending restart/fade timer.
+  function mp3Halt(fade) {
+    mp3ClearTimers();
+    mp3.token++;
+    const key = mp3.key;
+    mp3.key = null;
+    mp3.state = 'idle';
+    mp3.fading = false;
+    if (!key || !ctx) return;
+    const t = mp3.els[key];
+    const now = ctx.currentTime;
+    t.gain.gain.cancelScheduledValues(now);
+    t.gain.gain.setValueAtTime(t.gain.gain.value, now);
+    t.gain.gain.linearRampToValueAtTime(0, now + Math.max(0.02, fade));
+    const token = mp3.token;
+    const id = setTimeout(() => {
+      if (mp3.key !== key || mp3.token === token) t.el.pause(); // not restarted meanwhile
+    }, Math.max(0.02, fade) * 1000 + 60);
+    t.haltTimer = id;
+  }
+
+  // One play-through: seek silently, start, then watch for the final seconds to fade out.
+  function mp3Begin(key, token) {
+    if (token !== mp3.token || !ctx) return;
+    const t = mp3Track(key);
+    clearTimeout(t.haltTimer);
+    const cfg = MUSIC_CONFIG.tracks[key];
+    const el = t.el;
+    mp3.fading = false;
+    const now = ctx.currentTime;
+    t.gain.gain.cancelScheduledValues(now);
+    t.gain.gain.setValueAtTime(0, now); // silence while seeking: no click
+
+    const go = () => {
+      if (token !== mp3.token) return;
+      el.play().then(
+        () => {
+          if (token !== mp3.token) {
+            el.pause();
+            return;
+          }
+          mp3.state = 'playing';
+          // Starts at full level (no fade-in); a ~15 ms smoothing only prevents a click.
+          t.gain.gain.setTargetAtTime(trackLevel(key), ctx.currentTime, 0.005);
+          mp3Watch(key, token);
+        },
+        (err) => {
+          if (token !== mp3.token) return;
+          if (err && err.name === 'NotAllowedError') {
+            // Browser has not allowed playback yet: stay idle and retry on the next gesture.
+            mp3.key = null;
+            mp3.state = 'idle';
+            musicScene = null;
+            currentScene = null;
+            attachGestures();
+          } else {
+            mp3Failed(key);
+          }
+        }
+      );
+    };
+
+    const seek = () => {
+      if (token !== mp3.token) return;
+      const target = cfg.startOffset || 0;
+      if (Math.abs(el.currentTime - target) < 0.05) return go();
+      el.addEventListener('seeked', go, { once: true });
+      el.currentTime = target;
+    };
+    if (el.readyState >= 1) seek();
+    else {
+      el.addEventListener('loadedmetadata', seek, { once: true });
+      if (el.networkState === 3 /* NETWORK_NO_SOURCE */) el.load();
     }
-    if (!v) return;
-    v.scene = scene;
+  }
+
+  function mp3Watch(key, token) {
+    const t = mp3.els[key];
+    const el = t.el;
+    let fading = false;
+    const check = () => {
+      if (token !== mp3.token) return;
+      const remaining = el.duration - el.currentTime;
+      if (!fading && Number.isFinite(remaining) && remaining <= MUSIC_CONFIG.fadeOutSeconds + 0.05) {
+        fading = true;
+        mp3.fading = true;
+        const now = ctx.currentTime;
+        t.gain.gain.cancelScheduledValues(now);
+        t.gain.gain.setValueAtTime(t.gain.gain.value, now);
+        t.gain.gain.linearRampToValueAtTime(0, now + Math.max(0.1, Math.min(MUSIC_CONFIG.fadeOutSeconds, remaining)));
+      }
+      if (el.ended || (Number.isFinite(remaining) && remaining <= 0.03)) {
+        mp3ClearTimers();
+        el.pause();
+        t.gain.gain.cancelScheduledValues(ctx.currentTime);
+        t.gain.gain.setValueAtTime(0, ctx.currentTime);
+        mp3.state = 'gap';
+        // Silent gap, then restart from the configured offset (unless the scene changed).
+        mp3Later(() => mp3Begin(key, token), MUSIC_CONFIG.gapSeconds * 1000);
+      }
+    };
+    const id = setInterval(check, 100);
+    mp3.timers.add(id);
+    check();
+  }
+
+  // Start the track for a scene. The same track is never restarted; a different one waits for the
+  // previous to fade out, so only one background-music instance is ever audible.
+  function mp3Play(key) {
+    if (mp3.key === key && mp3.state !== 'idle') return true;
+    if (mp3.els[key] && mp3.els[key].failed) return false;
+    const switching = mp3.key !== null;
+    mp3Halt(switching ? 0.25 : 0.02);
+    mp3.key = key;
+    mp3.state = 'starting';
     voiceSeq++;
-    v.fadeIn(fadeIn, level);
-    musicVoice = v;
+    const token = mp3.token;
+    mp3Track(key);
+    if (switching) mp3Later(() => mp3Begin(key, token), 420) // after the old track has faded (250 ms) and been paused (+60 ms): never two playing;
+    else mp3Begin(key, token);
+    return true;
+  }
+
+  // Hidden tab: pause the recording too, so its clock (and the end-of-track fade) stays in step.
+  function mp3PauseForHidden() {
+    const t = mp3.key && mp3.els[mp3.key];
+    if (t && mp3.state === 'playing') t.el.pause();
+  }
+  function mp3ResumeAfterHidden() {
+    const t = mp3.key && mp3.els[mp3.key];
+    if (t && mp3.state === 'playing' && t.el.paused) t.el.play().catch(() => {});
+  }
+
+  // ---------- scene control ----------
+  function stopMusic(fade) {
+    mp3Halt(fade);
+    musicScene = null;
+  }
+
+  // Which track (if any) this scene should use right now.
+  function trackForScene(scene) {
+    const key = MUSIC_CONFIG.sceneTrack[scene];
+    if (!key || !mp3Supported()) return null;
+    const t = mp3.els[key];
+    return t && t.failed ? null : key;
+  }
+
+  // The same track is never restarted (e.g. battle -> victory keeps the Taiko playing).
+  function startMusic(scene) {
+    const key = trackForScene(scene);
+    if (!key) {
+      stopMusic(0.4); // no usable track for this scene (failed MP3): silence, never synthesized music
+      return;
+    }
+    musicScene = scene;
+    mp3Play(key);
   }
 
   // Bring actual playback in line with the wanted scene, mode and permissions.
   function applyScene() {
-    clearTimeout(fanfareTimer);
     const scene = wantedScene;
     const canMusic = musicOn() && running();
     if (!canMusic || scene === 'silent') {
@@ -749,18 +792,15 @@ const BGAudio = (function () {
     const previous = currentScene;
     currentScene = scene;
     if (scene === 'battle') {
-      startMusic('battle', 1.2);
+      startMusic('battle');
       startSfxSession();
     } else if (scene === 'victory') {
       stopSfx(); // battle cries, roars and weapon effects stop before the fanfare
-      stopMusic(0.7); // battle music fades out
+      startMusic('victory'); // Taiko continues under the fanfare
       if (previous === 'battle' || previous === null) playFanfare();
-      fanfareTimer = setTimeout(() => {
-        if (wantedScene === 'victory' && running() && musicOn()) startMusic('quiet', 2.5);
-      }, FANFARE_MS);
     } else {
       stopSfx();
-      startMusic(scene, 2.2);
+      startMusic(scene);
     }
   }
 
@@ -772,10 +812,10 @@ const BGAudio = (function () {
 
   // ---------- voice ----------
   function duck(on) {
-    if (!ctx || !musicBus) return;
+    if (!ctx || !mp3Bus) return;
     const now = ctx.currentTime;
-    musicBus.gain.cancelScheduledValues(now);
-    musicBus.gain.setTargetAtTime(on ? DUCKED_LEVEL : MUSIC_LEVEL, now, 0.15);
+    mp3Bus.gain.cancelScheduledValues(now);
+    mp3Bus.gain.setTargetAtTime(on ? MUSIC_CONFIG.duckFactor : 1, now, 0.15); // smooth in both directions
   }
 
   function activated() {
@@ -837,7 +877,12 @@ const BGAudio = (function () {
   }
 
   // ---------- lifecycle ----------
+  let lastMode = mode();
   BGSettings.onChange(() => {
+    applyMusicVolume(); // slider: live level change, never a restart
+    const modeChanged = mode() !== lastMode;
+    lastMode = mode();
+    if (!modeChanged) return;
     if (!voiceOn()) cancelSpeech();
     if (musicOn()) {
       if (!running()) {
@@ -859,9 +904,11 @@ const BGAudio = (function () {
     if (document.hidden) {
       cancelSpeech();
       stopSfx(); // timers would keep queuing effects while the context is suspended
+      mp3PauseForHidden();
       ctx.suspend().catch(() => {});
     } else if (musicOn() && activated()) {
       ctx.resume().then(() => {
+        mp3ResumeAfterHidden();
         applyScene();
         if (wantedScene === 'battle' && musicOn()) startSfxSession();
       }, () => {});
@@ -877,6 +924,7 @@ const BGAudio = (function () {
   if (mode() !== 'mute') attachGestures();
 
   return {
+    config: MUSIC_CONFIG, // editable at runtime (tests / future settings)
     FANFARE_MS,
     setScene,
     setFighters,
@@ -890,7 +938,16 @@ const BGAudio = (function () {
       ctxState: ctx ? ctx.state : 'none',
       wantedScene,
       currentScene,
-      music: musicVoice ? musicVoice.scene : null,
+      music: musicScene,
+      track: mp3.key,
+      mp3State: mp3.state,
+      mp3Time: mp3.key && mp3.els[mp3.key] ? mp3.els[mp3.key].el.currentTime : null,
+      mp3Duration: mp3.key && mp3.els[mp3.key] ? mp3.els[mp3.key].el.duration : null,
+      mp3Gain: mp3.key && mp3.els[mp3.key] ? mp3.els[mp3.key].gain.gain.value : null,
+      busDuck: mp3Bus ? mp3Bus.gain.value : null,
+      playing: Object.entries(mp3.els).filter(([, t]) => !t.el.paused).map(([k]) => k),
+      failed: Object.entries(mp3.els).filter(([, t]) => t.failed).map(([k]) => k),
+      musicVolume: BGSettings.get().musicVolume,
       sfxActive: !!sfxSession,
       voiceSeq,
       speaking,

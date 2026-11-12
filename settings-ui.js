@@ -51,6 +51,48 @@
     return set;
   }
 
+  // "Background Music" slider: 0-100 %, step 5. Never changes the selected sound mode.
+  function volumeControl(current, mode) {
+    const wrap = document.createElement('div');
+    wrap.className = 'settings-group settings-slider';
+    const label = document.createElement('label');
+    label.htmlFor = 'music-volume';
+    label.className = 'slider-label';
+    const name = document.createElement('span');
+    name.textContent = 'Background Music';
+    const out = document.createElement('output');
+    out.id = 'music-volume-out';
+    out.htmlFor = 'music-volume';
+    label.append(name, out);
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.id = 'music-volume';
+    input.min = '0';
+    input.max = '100';
+    input.step = '5';
+    input.value = String(Math.round(current * 100));
+    const hint = document.createElement('p');
+    hint.className = 'settings-note';
+    hint.id = 'music-volume-hint';
+    const sync = () => {
+      out.textContent = input.value + '%';
+      input.setAttribute('aria-valuetext', input.value + ' percent');
+    };
+    const syncHint = (m) => {
+      hint.textContent = m === 'voice' || m === 'mute' ? 'Music is off in the current sound mode.' : '';
+    };
+    input.setAttribute('aria-describedby', 'music-volume-hint');
+    sync();
+    syncHint(mode);
+    input.addEventListener('input', () => {
+      sync();
+      BGSettings.set({ musicVolume: Number(input.value) / 100 });
+    });
+    wrap.append(label, input, hint);
+    wrap.syncHint = syncHint;
+    return wrap;
+  }
+
   const dialog = document.createElement('div');
   dialog.className = 'confirm';
   dialog.id = 'settings-dialog';
@@ -79,6 +121,7 @@
     note.className = 'settings-note';
     note.textContent = 'Sound starts after your first tap or key press, as browsers require.';
     const audio = radioGroup('audio', 'Sound', AUDIO_OPTIONS, s.audio);
+    const volume = volumeControl(s.musicVolume, s.audio);
     const motion = radioGroup('animation', 'Victory animation', MOTION_OPTIONS, BGSettings.motion());
     const reduced = document.createElement('p');
     reduced.className = 'settings-note';
@@ -91,9 +134,12 @@
     done.className = 'primary';
     done.id = 'settings-done';
     done.textContent = 'Done';
-    box.append(title, note, audio, motion, reduced, done);
+    box.append(title, note, audio, volume, motion, reduced, done);
     dialog.replaceChildren(box);
-    audio.addEventListener('change', (e) => BGSettings.set({ audio: e.target.value }));
+    audio.addEventListener('change', (e) => {
+      BGSettings.set({ audio: e.target.value });
+      volume.syncHint(e.target.value);
+    });
     motion.addEventListener('change', (e) => BGSettings.set({ animation: e.target.value }));
     done.addEventListener('click', close);
   }

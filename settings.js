@@ -2,17 +2,21 @@
 // Loaded in <head> so the motion attribute is set before first paint.
 // audio:     'all' | 'voice' | 'music' (music & effects only) | 'mute'
 // animation: 'auto' (follow the OS) | 'animated' | 'css' | 'none'
+// musicVolume: 0..1 in steps of 0.05 (the "Background Music" slider), default 0.5
 const BGSettings = (function () {
   const KEY = 'battleground-settings';
   const AUDIO_MODES = ['all', 'voice', 'music', 'mute'];
   const ANIMATION_MODES = ['animated', 'css', 'none'];
   const listeners = new Set();
-  let state = { audio: 'all', animation: 'auto' };
+  let state = { audio: 'all', animation: 'auto', musicVolume: 0.5 };
+
+  const cleanVolume = (v) => (typeof v === 'number' && v >= 0 && v <= 1 ? Math.round(v * 20) / 20 : null);
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY));
     if (saved && AUDIO_MODES.includes(saved.audio)) state.audio = saved.audio;
     if (saved && ANIMATION_MODES.includes(saved.animation)) state.animation = saved.animation;
+    if (saved && cleanVolume(saved.musicVolume) !== null) state.musicVolume = cleanVolume(saved.musicVolume);
   } catch {
     // Storage blocked or corrupt: defaults apply.
   }
@@ -59,6 +63,7 @@ const BGSettings = (function () {
       const saved = JSON.parse(e.newValue);
       if (saved && AUDIO_MODES.includes(saved.audio)) state.audio = saved.audio;
       if (saved && (ANIMATION_MODES.includes(saved.animation) || saved.animation === 'auto')) state.animation = saved.animation;
+      if (saved && cleanVolume(saved.musicVolume) !== null) state.musicVolume = cleanVolume(saved.musicVolume);
       emit();
     } catch {
       // ignore
@@ -75,6 +80,7 @@ const BGSettings = (function () {
     set(patch) {
       if (patch.audio && AUDIO_MODES.includes(patch.audio)) state.audio = patch.audio;
       if (patch.animation && ANIMATION_MODES.includes(patch.animation)) state.animation = patch.animation;
+      if (cleanVolume(patch.musicVolume) !== null) state.musicVolume = cleanVolume(patch.musicVolume);
       persist();
       emit();
     },
