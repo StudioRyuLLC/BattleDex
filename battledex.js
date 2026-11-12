@@ -21,12 +21,17 @@ function updateActionButton(list) {
     card.classList.toggle('is-selected', on);
     card.querySelector('.card-select').setAttribute('aria-pressed', String(on));
   });
+  updateCount(list);
   updateFloatFight();
 }
 
 function toggleSelect(image) {
   if (selected.has(image)) selected.delete(image);
-  else if (selected.size < MAX_SELECTED) selected.add(image);
+  else if (selected.size < MAX_SELECTED) {
+    selected.add(image);
+    const f = loadDex().find((x) => x.image === image);
+    if (f) guarded(() => BGAudio.say(`${f.label} selected`));
+  }
   else {
     selectHint.hidden = false;
     selectHint.textContent = 'Only two fighters may enter the ring. Deselect one first.';
@@ -50,6 +55,15 @@ if ('IntersectionObserver' in window) {
 }
 floatFight.addEventListener('click', () => onFightClick(floatFight));
 
+function guarded(fn) {
+  try {
+    fn();
+  } catch {
+    // optional feature failed; the page keeps working
+  }
+}
+guarded(() => BGAudio.setScene('dex'));
+
 // Selected fighters in the order they were picked (Set keeps insertion order):
 // first pick = Fighter A, second pick = Fighter B.
 function pickedFighters() {
@@ -65,7 +79,7 @@ function showHint(text) {
 const fightModal = document.getElementById('confirm-fight');
 const modalFightBtn = document.getElementById('fight-go');
 const modalCancelBtn = document.getElementById('fight-cancel');
-const backgroundEls = [document.querySelector('.site-header'), document.querySelector('main'), document.querySelector('.foot')];
+const backgroundEls = [document.querySelector('.site-header'), document.querySelector('main'), document.querySelector('.version-switch'), document.querySelector('.foot')];
 
 let modalOpener = newBtn; // which Fight button opened the dialog (focus returns there)
 
@@ -92,7 +106,7 @@ function closeFightModal() {
 function onFightClick(opener) {
   const picked = pickedFighters();
   if (picked.length === 0) {
-    location.href = 'index.html';
+    location.href = 'index.html#new'; // the marker keeps index.html from sending us back here
     return;
   }
   if (picked.length === 1) {
@@ -132,6 +146,137 @@ fightModal.addEventListener('keydown', (e) => {
   }
 });
 
+// ---------- Search (only when MORE than 10 fighters are saved) ----------
+// Filtering only hides/shows existing cards: stored data, selections and selection order
+// (the `selected` Set) are never touched, and there are no network requests.
+const SEARCH_MIN_FIGHTERS = 10;
+const searchBox = document.getElementById('dex-search');
+const searchInput = document.getElementById('dex-search-input');
+const searchClear = document.getElementById('dex-search-clear');
+const searchEmpty = document.getElementById('dex-search-empty');
+const searchStatus = document.getElementById('dex-search-status');
+const dexGrid = document.getElementById('dex-grid');
+
+const normQuery = (v) => v.trim().replace(/\s+/g, ' ').toLowerCase();
+
+function updateCount(list) {
+  const total = list.length;
+  const q = normQuery(searchInput.value);
+  const shown = document.querySelectorAll('.card:not([hidden])').length;
+  let text =
+    total === 0
+      ? 'No champions enshrined in thy chronicle yet.'
+      : q && !searchBox.hidden
+        ? `Showing ${shown} of ${total} champions.`
+        : `${total} ${total === 1 ? 'champion' : 'champions'} enshrined in thy chronicle.`;
+  if (selected.size > 0) text += ` ${selected.size} selected.`;
+  document.getElementById('dex-count').textContent = text;
+}
+
+function applyFilter() {
+  const list = loadDex();
+  const searching = list.length > SEARCH_MIN_FIGHTERS;
+  searchBox.hidden = !searching;
+  dexGrid.classList.toggle('has-preview', searching);
+  if (!searching) searchInput.value = '';
+  const q = searching ? normQuery(searchInput.value) : '';
+  let shown = 0;
+  document.querySelectorAll('.card').forEach((card) => {
+    const match = !q || card.dataset.label.toLowerCase().includes(q);
+    card.hidden = !match;
+    if (match) shown++;
+  });
+  dexGrid.dataset.perRow = String(Math.min(Math.max(shown, 1), 4)); // 1-3 cards get bigger cards; 4+ use four per row
+  searchClear.hidden = !(searching && searchInput.value.length > 0);
+  const none = searching && q !== '' && shown === 0;
+  searchEmpty.hidden = !none;
+  searchEmpty.textContent = none ? `No fighters match "${searchInput.value.trim()}". Clear the search to see everyone.` : '';
+  searchStatus.textContent = searching && q ? (none ? 'No matching fighters.' : `Showing ${shown} of ${list.length} fighters.`) : '';
+  updateCount(list);
+}
+
+function clearSearch() {
+  searchInput.value = '';
+  applyFilter();
+  searchInput.focus();
+}
+
+searchInput.addEventListener('input', applyFilter);
+searchClear.addEventListener('click', clearSearch);
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && searchInput.value) {
+    e.preventDefault();
+    clearSearch();
+  }
+});
+
+// ---------- Preview dialog (reuses toggleSelect, so there is one source of truth) ----------
+const previewModal = document.getElementById('preview-modal');
+const previewImg = document.getElementById('preview-img');
+const previewTitle = document.getElementById('preview-title');
+const previewNote = document.getElementById('preview-note');
+const previewSelect = document.getElementById('preview-select');
+const previewClose = document.getElementById('preview-close');
+let previewImage = null;
+let previewOpener = null;
+
+function refreshPreview() {
+  const isOn = selected.has(previewImage);
+  const full = !isOn && selected.size >= MAX_SELECTED;
+  previewSelect.querySelector('span').textContent = isOn ? 'Deselect fighter' : 'Select fighter';
+  previewSelect.disabled = full;
+  previewNote.hidden = !full;
+}
+
+function openPreview(fighter, opener) {
+  previewImage = fighter.image;
+  previewOpener = opener;
+  previewTitle.textContent = fighter.label;
+  previewImg.src = fighter.image;
+  previewImg.alt = fighter.label;
+  refreshPreview();
+  backgroundEls.forEach((el) => el && (el.inert = true));
+  document.body.classList.add('modal-open');
+  previewModal.hidden = false;
+  (previewSelect.disabled ? previewClose : previewSelect).focus();
+}
+
+function closePreview() {
+  previewModal.hidden = true;
+  backgroundEls.forEach((el) => el && (el.inert = false));
+  document.body.classList.remove('modal-open');
+  updateFloatFight();
+  if (previewOpener && document.contains(previewOpener)) previewOpener.focus({ preventScroll: true });
+  previewImage = null;
+  previewOpener = null;
+}
+
+previewClose.addEventListener('click', closePreview);
+previewSelect.addEventListener('click', () => {
+  if (previewImage) toggleSelect(previewImage); // same logic as clicking the card
+  closePreview();
+});
+previewModal.addEventListener('click', (e) => {
+  if (e.target === previewModal) closePreview();
+});
+previewModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closePreview();
+  } else if (e.key === 'Tab') {
+    const items = [previewClose, previewSelect].filter((el) => !el.disabled);
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+});
+
 function renderDex() {
   const list = loadDex();
   const grid = document.getElementById('dex-grid');
@@ -142,6 +287,7 @@ function renderDex() {
     const card = document.createElement('article');
     card.className = 'card';
     card.dataset.image = fighter.image;
+    card.dataset.label = fighter.label;
 
     const top = document.createElement('div');
     top.className = 'card-top';
@@ -161,6 +307,10 @@ function renderDex() {
       next.splice(index, 1);
       saveDex(next);
       selected.delete(fighter.image);
+      if (next.length === 0) {
+        location.href = 'index.html#new'; // last fighter gone: show the entry screen
+        return;
+      }
       renderDex();
     });
 
@@ -172,7 +322,19 @@ function renderDex() {
     pick.className = 'card-select';
     pick.setAttribute('aria-pressed', 'false');
     pick.setAttribute('aria-label', `Select ${fighter.label}`);
-    pick.addEventListener('click', () => toggleSelect(fighter.image));
+    pick.addEventListener('click', () => {
+      guarded(() => BGMotion.awaken(card)); // deliberate click/tap, no hover needed
+      toggleSelect(fighter.image);
+    });
+    // Mouse hover only: touch and pen go through the click above.
+    card.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'mouse') guarded(() => BGMotion.awaken(card));
+    });
+
+    const embers = document.createElement('span');
+    embers.className = 'card-embers';
+    embers.setAttribute('aria-hidden', 'true');
+    for (let n = 0; n < 6; n++) embers.append(document.createElement('i'));
 
     const img = document.createElement('img');
     img.src = fighter.image;
@@ -183,17 +345,23 @@ function renderDex() {
     name.textContent = fighter.label;
 
     pick.append(img, name);
-    card.append(top, pick);
+
+    // Preview opens a larger view with a Select action (shown only when search is active).
+    const preview = document.createElement('button');
+    preview.type = 'button';
+    preview.className = 'card-preview';
+    preview.setAttribute('aria-label', `Preview ${fighter.label}`);
+    preview.append(makeIcon('zoom-in'));
+    preview.addEventListener('click', () => openPreview(fighter, preview));
+
+    card.append(top, pick, preview, embers);
     grid.append(card);
   }
 
   const n = list.length;
-  document.getElementById('dex-count').textContent =
-    n === 0
-      ? 'No champions enshrined in thy chronicle yet.'
-      : `${n} ${n === 1 ? 'champion' : 'champions'} enshrined in thy chronicle.`;
   document.getElementById('dex-empty').hidden = n > 0;
   document.getElementById('dex-clear').hidden = n === 0;
+  applyFilter(); // search box visibility, active filter and the count text
   updateActionButton(list);
 }
 
@@ -221,8 +389,8 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('confirm-yes').addEventListener('click', () => {
   saveDex([]);
   selected.clear();
-  renderDex();
   confirmBox.hidden = true;
+  location.href = 'index.html#new'; // nothing left: show the entry screen
 });
 
 renderDex();

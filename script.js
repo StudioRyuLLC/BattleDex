@@ -5,6 +5,9 @@ const views = {
   error: document.getElementById('view-error'),
 };
 
+// Home ambience is the default scene (it only plays once the browser allows audio).
+guarded(() => BGAudio.setScene('home'));
+
 // Shift the page's ember glow toward the winner (A = left, B = right).
 const root = document.documentElement;
 function setSpotlight(side) {
@@ -56,10 +59,26 @@ function stopLoadingMessages() {
   loadingTimer = null;
 }
 
+// Audio/animation are optional extras: they must never break the game, so every call goes
+// through guarded() and a missing or failing manager is simply ignored.
+function guarded(fn) {
+  try {
+    fn();
+  } catch {
+    // optional feature failed; gameplay continues
+  }
+}
+let restoringResult = false; // true while re-showing a previous result (no fanfare / voice)
+
 function showView(name) {
   for (const key in views) {
     views[key].hidden = key !== name;
   }
+  guarded(() => {
+    BGAudio.setScene(name === 'loading' ? 'battle' : name === 'result' ? (restoringResult ? 'quiet' : 'victory') : 'home');
+    if (name !== 'loading' && name !== 'result') BGAudio.cancelSpeech();
+  });
+  if (name !== 'result') guarded(() => BGMotion.clearVictory());
   if (name === 'loading') startLoadingMessages();
   else stopLoadingMessages();
   if (name !== 'result') setSpotlight(null);
@@ -153,8 +172,9 @@ function placeVictorFirst(side) {
   first.after(disc);
 }
 
-function showResult(data, fighterA, fighterB) {
+function showResult(data, fighterA, fighterB, opts = {}) {
   const { winner, reasoning, imageA, imageB } = data;
+  restoringResult = !!opts.quiet;
   recentFight = { data, fighterA, fighterB };
   saveRecentFight(recentFight);
   document.getElementById('result-winner').textContent = `${winner} wins!`;
@@ -183,6 +203,17 @@ function showResult(data, fighterA, fighterB) {
     figs[side === 'A' ? 'B' : 'A'].classList.add('is-loser');
   }
   setSpotlight(side ? 'A' : null); // the victor is always shown first (left / top)
+  const winnerName = side === 'A' ? fighterA : side === 'B' ? fighterB : winner;
+  const loserName = side === 'A' ? fighterB : side === 'B' ? fighterA : '';
+  guarded(() => BGMotion.playVictory(side, winnerName));
+  if (!opts.quiet) {
+    guarded(() =>
+      BGAudio.sayQueue(
+        [loserName ? `Victory to ${winnerName}! ${loserName} has fallen.` : `Victory to ${winnerName}!`],
+        BGAudio.victoryDelay()
+      )
+    );
+  }
 }
 
 function showError(message) {
@@ -190,17 +221,44 @@ function showError(message) {
   showView('error');
 }
 
+// Cancel support: every fight gets an id; only the newest, still-active fight may touch the UI.
+// Aborting the browser request does NOT guarantee the server or AI providers stop work
+// (or that any cost is avoided); it only stops this page from waiting.
+let fightSeq = 0;
+let activeFight = null; // { id, controller, a, b }
+
+function cancelFight() {
+  const f = activeFight;
+  if (!f) return;
+  activeFight = null;
+  fightSeq++; // any late response now fails the id check and is ignored
+  guarded(() => f.controller && f.controller.abort());
+  guarded(() => BGAudio.cancelSpeech());
+  fillForm(f.a, f.b); // back to entry with both names intact (showView also stops audio)
+  document.getElementById('fighter-a').focus({ preventScroll: true });
+}
+
 async function runFight(fighterA, fighterB) {
+  const id = ++fightSeq;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  activeFight = { id, controller, a: fighterA, b: fighterB };
+  const stale = () => id !== fightSeq || !activeFight || activeFight.id !== id;
   document.getElementById('loading-a').textContent = fighterA;
   document.getElementById('loading-b').textContent = fighterB;
+  guarded(() => BGAudio.setFighters(fighterA, fighterB)); // picks the skirmish sound mix
   showView('loading');
+  guarded(() => BGAudio.sayQueue([`${fighterA} versus ${fighterB}. Let the battle begin!`, 'The judges are deliberating.']));
+  guarded(() => document.getElementById('cancel-battle').focus({ preventScroll: true })); // keep keyboard users oriented
   try {
     const res = await fetch('/api/fight', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fighterA, fighterB }),
+      signal: controller ? controller.signal : undefined,
     });
     const data = await res.json().catch(() => ({}));
+    if (stale()) return; // cancelled (or superseded) while waiting
+    activeFight = null;
     if (!res.ok) {
       if (data.code === 'invalid_matchup') {
         // Server-side matchup rejection: give the names back so they can be fixed.
@@ -213,7 +271,9 @@ async function runFight(fighterA, fighterB) {
       return;
     }
     showResult(data, fighterA, fighterB);
-  } catch {
+  } catch (err) {
+    if (stale() || (err && err.name === 'AbortError')) return; // intentional cancel: no error message
+    activeFight = null;
     showError("The messenger raven never returned! The road to the arena is cut. Check thy connection, then sound the horn once more!");
   }
 }
@@ -280,11 +340,23 @@ document.getElementById('nav-rematch').addEventListener('click', () => {
 document.getElementById('nav-again').addEventListener('click', () => fillForm('', ''));
 document.getElementById('result-again').addEventListener('click', () => fillForm('', ''));
 document.getElementById('error-again').addEventListener('click', () => showView('form'));
+document.getElementById('cancel-battle').addEventListener('click', cancelFight);
+// Opening index.html#new while already on this page (typed URL, history) also shows a clean entry screen.
+window.addEventListener('hashchange', () => {
+  if (location.hash !== '#new') return;
+  if (activeFight) cancelFight();
+  else fillForm('', '');
+});
+document.querySelector('.brand').addEventListener('click', (e) => {
+  e.preventDefault(); // already on the entry page: don't navigate (the URL carries #new)
+  if (activeFight) cancelFight();
+  else fillForm('', '');
+});
 
 // Coming back from battledex.html via "Back to recent fight".
 if (location.hash === '#recent') {
   const saved = loadRecentFight();
-  if (saved) showResult(saved.data, saved.fighterA, saved.fighterB);
+  if (saved) showResult(saved.data, saved.fighterA, saved.fighterB, { quiet: true });
 }
 
 // Fighter name limit (matches MAX_NAME_LENGTH in api/fight.js). The inputs
@@ -299,6 +371,14 @@ function updateCounters() {
     document.getElementById('fighter-a').value.length + ' / ' + MAX_NAME_LENGTH;
   document.getElementById('count-b').textContent =
     document.getElementById('fighter-b').value.length + ' / ' + MAX_NAME_LENGTH;
+}
+
+// Spoken confirmation of a fighter name once the field is committed (not per keystroke).
+for (const [id, label] of [['fighter-a', 'Fighter A'], ['fighter-b', 'Fighter B']]) {
+  document.getElementById(id).addEventListener('change', (e) => {
+    const name = e.target.value.trim();
+    if (name) guarded(() => BGAudio.say(`${label}: ${name}`));
+  });
 }
 
 for (const id of ['fighter-a', 'fighter-b']) {

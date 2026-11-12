@@ -20,7 +20,7 @@
   update();
 
   btn.addEventListener('click', () => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = BGSettings.motion() === 'none';
     window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
     // The button hides as we reach the top; keep keyboard focus somewhere sensible.
     const home = document.querySelector('.brand');
