@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Battleground</title>
+  <link rel="icon" href="assets/images/favicons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicons/favicon-16x16.png" />
+  <link rel="apple-touch-icon" href="assets/images/favicons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Cinzel+Decorative:wght@700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
@@ -39,11 +43,11 @@
     <nav class="header-nav" aria-label="Main">
       <!-- Shown only while the verdict view is active (see showView) -->
       <div id="result-nav" class="result-nav" hidden>
-        <button type="button" id="nav-rematch" class="nav-btn">
+        <button type="button" id="nav-rematch" class="nav-btn btn-rematch">
           <svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"/></svg>
           <span>Rematch</span>
         </button>
-        <button type="button" id="nav-again" class="nav-btn">
+        <button type="button" id="nav-again" class="nav-btn btn-again">
           <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
           <span>Fight again</span>
         </button>
@@ -198,13 +202,21 @@
       <p id="save-status" role="status"></p>
 
       <div class="parchment">
-        <h3>The Oracle's Verdict</h3>
+        <div class="verdict-head">
+          <h3>The Oracle's Verdict</h3>
+          <button type="button" id="verdict-read" class="verdict-read" aria-describedby="verdict-read-note">
+            <svg class="icon" aria-hidden="true"><use href="#i-volume-2"/></svg>
+            <span class="label">Read verdict aloud</span>
+          </button>
+        </div>
+        <p id="verdict-read-note" class="verdict-read-note" hidden></p>
+        <p id="verdict-read-status" class="sr-only" role="status" aria-live="polite"></p>
         <p id="result-reasoning"></p>
         <span class="seal" aria-hidden="true"><svg class="icon"><use href="#i-swords"/></svg></span>
       </div>
 
       <div class="actions">
-        <button id="result-again" class="primary">
+        <button id="result-again" class="btn-again">
           <svg class="icon" aria-hidden="true"><use href="#i-swords"/></svg>
           <span>Fight again</span>
         </button>

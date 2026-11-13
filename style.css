@@ -920,19 +920,17 @@ input[type='text']:focus {
 .dex-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 24px;
   padding: 32px 0 28px;
+  text-align: center;
   border-bottom: 1px solid var(--line);
 }
 
 .dex-title .eyebrow {
-  justify-content: flex-start;
-}
-
-.dex-title .eyebrow::before {
-  display: none;
+  justify-content: center;
 }
 
 .page-title {
@@ -954,9 +952,8 @@ input[type='text']:focus {
 .dex-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
-  margin-left: auto;
 }
 
 .dex-actions .button {
@@ -1263,8 +1260,24 @@ input[type='text']:focus {
   }
 }
 
-/* VS sits between the two stacked fighter panels (up to 893px wide) */
-@media (max-width: 893px) {
+/* VS sits between the two stacked fighter panels (899px and below) */
+@media (max-width: 899px) {
+  .fighters {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .fighters .fighter {
+    flex: none;
+    width: 100%;
+  }
+
+  .vs-disc {
+    margin: 0 auto;
+  }
+
   .duel {
     flex-direction: column;
     flex-wrap: nowrap;
@@ -1313,8 +1326,7 @@ html[data-motion='none'] .card-embers {
 
 @media (max-width: 640px) {
   .dex-actions {
-    justify-content: flex-start;
-    margin-left: 0;
+    justify-content: center;
   }
 }
 
@@ -2208,4 +2220,125 @@ body.modal-open .settings-fab {
 
 .settings-slider .settings-note {
   margin: 0;
+}
+
+
+/* ---------- Stage 9.0 ---------- */
+/* Navigation actions: one colour per action, everywhere it appears. Each keeps its icon and
+   text label, so colour is never the only cue. Gold (.primary) stays reserved for New fight,
+   Challenge new fighter and Fight. */
+.btn-rematch,
+.btn-again {
+  --btn-c: var(--steel);
+  --btn-edge: #4F7E96;
+  --btn-tint: 127, 179, 204;
+  border-color: var(--btn-edge);
+  background: rgba(var(--btn-tint), 0.1);
+  color: var(--btn-c);
+}
+
+.btn-again {
+  --btn-c: #F4906C;
+  --btn-edge: #B5503A;
+  --btn-tint: 224, 113, 77;
+}
+
+.btn-rematch:hover,
+.btn-again:hover,
+.btn-rematch:focus-visible,
+.btn-again:focus-visible {
+  border-color: var(--btn-c);
+  background: rgba(var(--btn-tint), 0.22);
+}
+
+/* Verdict narration button (sits on the parchment) */
+.verdict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.parchment .verdict-head h3 {
+  margin: 0;
+}
+
+.verdict-read {
+  min-height: 44px;
+  padding: 0 16px;
+  border-color: #6B3A16;
+  background: rgba(107, 58, 22, 0.08);
+  color: #4A2608;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+.verdict-read:hover {
+  background: rgba(107, 58, 22, 0.18);
+}
+
+.verdict-read.is-reading {
+  background: #4A2608;
+  color: #F6E7C4;
+}
+
+.verdict-read[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.verdict-read:focus-visible {
+  outline: 3px solid #1A120A;
+  outline-offset: 3px;
+}
+
+.verdict-read-note {
+  margin: 0 0 12px;
+  color: #5A3410;
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* Mobile: every screen starts at the top (no vertical centring), with safe-area padding. */
+@media (max-width: 640px) {
+  .site-header {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+  }
+
+  .content {
+    display: block;
+    padding-top: 12px;
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .view {
+    justify-content: flex-start;
+    align-content: flex-start;
+    min-height: 0;
+  }
+
+  #view-loading {
+    padding-top: 16px;
+    gap: 28px;
+  }
+
+  #view-error {
+    align-items: flex-start;
+    padding: 24px 0;
+  }
+
+  .verdict-head {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .fighters {
+    padding-top: 88px; /* room for the crown above the first portrait */
+  }
 }

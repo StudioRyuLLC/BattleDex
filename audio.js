@@ -839,6 +839,25 @@ const BGAudio = (function () {
     return u;
   }
 
+  // On-demand narration (the verdict button). Only one narration at a time; cb(state) is
+  // called once with 'end' (finished), 'error' or 'stopped' (cancelled by anything else).
+  let narration = null; // { id, cb }
+  let narrationSeq = 0;
+
+  const canNarrate = () => voiceOn() && speechSupported();
+
+  function finishNarration(state) {
+    const n = narration;
+    narration = null;
+    if (n && n.cb) {
+      try {
+        n.cb(state);
+      } catch {
+        // UI callback failed: ignore
+      }
+    }
+  }
+
   function cancelSpeech() {
     clearTimeout(speechTimer);
     speechTimer = null;
@@ -851,6 +870,46 @@ const BGAudio = (function () {
     }
     speaking = 0;
     duck(false);
+    finishNarration('stopped');
+  }
+
+  // Read text aloud on request. Split into sentences: some browsers cut off one long utterance.
+  // Replaces any speech already queued (no overlap). Returns false if narration is unavailable.
+  function narrate(text, cb) {
+    cancelSpeech();
+    if (!canNarrate()) return false;
+    const parts = (String(text).match(/[^.!?]+[.!?]*/g) || [String(text)]).map((p) => p.trim()).filter(Boolean);
+    if (!parts.length) return false;
+    const id = ++narrationSeq;
+    narration = { id, cb };
+    const live = () => narration && narration.id === id;
+    try {
+      parts.forEach((p, i) => {
+        const u = makeUtterance(p);
+        const onend = u.onend;
+        const onerror = u.onerror;
+        u.onend = () => {
+          onend();
+          if (live() && i === parts.length - 1) finishNarration('end');
+        };
+        u.onerror = () => {
+          onerror();
+          if (live()) {
+            finishNarration('error');
+            try {
+              window.speechSynthesis.cancel(); // drop the rest of the queue
+            } catch {
+              // ignore
+            }
+          }
+        };
+        window.speechSynthesis.speak(u);
+      });
+    } catch {
+      finishNarration('error');
+      return false;
+    }
+    return true;
   }
 
   // Speak one or more lines, replacing anything already queued. delayMs waits (for a fanfare).
@@ -932,6 +991,8 @@ const BGAudio = (function () {
     say,
     sayQueue,
     cancelSpeech,
+    narrate,
+    canNarrate,
     victoryDelay,
     // Read-only snapshot for tests / diagnostics.
     debug: () => ({

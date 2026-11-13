@@ -83,7 +83,86 @@ function showView(name) {
   else stopLoadingMessages();
   if (name !== 'result') setSpotlight(null);
   document.getElementById('result-nav').hidden = name !== 'result';
+  // Fight screens always open at the top (instant, so reduced-motion users are unaffected).
+  if (name === 'loading' || name === 'result') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 }
+
+// --- Verdict narration (on demand only: never starts by itself) ---
+const verdictBtn = document.getElementById('verdict-read');
+const verdictNote = document.getElementById('verdict-read-note');
+const verdictStatus = document.getElementById('verdict-read-status');
+let verdictReading = false;
+
+function narrationAvailable() {
+  try {
+    return !!BGAudio.canNarrate();
+  } catch {
+    return false;
+  }
+}
+
+function narrationUnavailableReason() {
+  const speech = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  if (!speech) return 'Reading aloud is not supported in this browser.';
+  return 'Narration is off in the current sound mode. Choose "All sound" or "Voice only" in Settings to hear the verdict.';
+}
+
+// Keeps the button label, icon, disabled state and the hint text in sync with reality.
+function syncVerdictButton() {
+  const available = narrationAvailable();
+  if (!available) verdictReading = false;
+  verdictBtn.setAttribute('aria-disabled', available ? 'false' : 'true');
+  verdictBtn.classList.toggle('is-unavailable', !available);
+  verdictBtn.classList.toggle('is-reading', verdictReading);
+  verdictBtn.querySelector('.label').textContent = verdictReading ? 'Stop reading verdict' : 'Read verdict aloud';
+  verdictBtn.querySelector('use').setAttribute('href', verdictReading ? '#i-volume-x' : '#i-volume-2');
+  verdictNote.textContent = available ? '' : narrationUnavailableReason();
+  verdictNote.hidden = available;
+}
+
+function announceVerdict(text) {
+  verdictStatus.textContent = '';
+  // Re-set on the next tick so repeated identical messages are announced again.
+  setTimeout(() => {
+    verdictStatus.textContent = text;
+  }, 50);
+}
+
+function stopVerdictReading() {
+  guarded(() => BGAudio.cancelSpeech()); // its callback resets the button and announces
+}
+
+verdictBtn.addEventListener('click', () => {
+  if (verdictReading) {
+    stopVerdictReading();
+    return;
+  }
+  if (!narrationAvailable()) {
+    syncVerdictButton();
+    announceVerdict(narrationUnavailableReason());
+    return;
+  }
+  const text = document.getElementById('result-reasoning').textContent.trim();
+  if (!text) return;
+  let started = false;
+  guarded(() => {
+    started = BGAudio.narrate(text, (state) => {
+      verdictReading = false;
+      syncVerdictButton();
+      announceVerdict(state === 'end' ? 'Finished reading the verdict.' : state === 'error' ? 'The verdict could not be read aloud.' : 'Stopped reading the verdict.');
+    });
+  });
+  if (!started) {
+    syncVerdictButton();
+    announceVerdict('The verdict could not be read aloud.');
+    return;
+  }
+  verdictReading = true;
+  syncVerdictButton();
+  announceVerdict('Reading the verdict aloud.');
+});
+guarded(() => BGSettings.onChange(syncVerdictButton));
+syncVerdictButton();
 
 // Storage helpers (loadDex/saveDex/recent fight) come from dex-store.js.
 // The recent fight is also mirrored to sessionStorage so battledex.html
@@ -179,6 +258,9 @@ function showResult(data, fighterA, fighterB, opts = {}) {
   saveRecentFight(recentFight);
   document.getElementById('result-winner').textContent = `${winner} wins!`;
   document.getElementById('result-reasoning').textContent = reasoning;
+  guarded(() => BGAudio.cancelSpeech()); // a new verdict never inherits an old narration
+  verdictReading = false;
+  syncVerdictButton();
   setFighterImage('result-image-a', imageA, fighterA);
   setFighterImage('result-image-b', imageB, fighterB);
   document.getElementById('name-a').textContent = fighterA;
