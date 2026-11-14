@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "echo 'static site, no build step'"
+    "build": "echo 'static site, no build step'",
+    "test": "node tests/fighter-policy.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

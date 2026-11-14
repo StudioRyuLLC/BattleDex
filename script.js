@@ -342,10 +342,13 @@ async function runFight(fighterA, fighterB) {
     if (stale()) return; // cancelled (or superseded) while waiting
     activeFight = null;
     if (!res.ok) {
-      if (data.code === 'invalid_matchup') {
-        // Server-side matchup rejection: give the names back so they can be fixed.
+      if (data.code === 'invalid_matchup' || data.code === 'moderation_blocked') {
+        // The matchup was rejected, or the image provider's safety system declined a portrait.
+        // Give both descriptions back, exactly as typed, so the player can reword and retry.
         fillForm(fighterA, fighterB);
         showFormHint(data.error);
+        const side = data.side === 'A' ? 'fighter-a' : data.side === 'B' ? 'fighter-b' : null;
+        if (side) guarded(() => document.getElementById(side).focus({ preventScroll: true }));
         return;
       }
       // 429 / 400 / 422 / 502 all carry a clear message from the API.
@@ -505,6 +508,5 @@ if (location.hash === '#challenge') {
   if (pending) {
     fillForm(pending.fighterA, '');
     document.getElementById('fighter-b').focus();
-    if (isProtectedName(pending.fighterA)) showFormHint(PROTECTED_MESSAGE);
   }
 }

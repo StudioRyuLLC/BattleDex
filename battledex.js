@@ -110,7 +110,6 @@ function onFightClick(opener) {
     return;
   }
   if (picked.length === 1) {
-    if (isProtectedName(picked[0].label)) return showHint(PROTECTED_MESSAGE);
     if (savePendingFight(picked[0].label, '')) location.href = 'index.html#challenge';
     return;
   }

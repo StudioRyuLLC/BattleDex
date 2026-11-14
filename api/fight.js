@@ -8,7 +8,7 @@ const { z } = require("zod");
 const { JUDGE_SYSTEM_PROMPT } = require("./judge-prompt");
 
 const { buildImagePrompt } = require("./art-style");
-const { validateMatchup, PROTECTED_MESSAGE } = require("../validate-fighters");
+const { validateMatchup } = require("../validate-fighters");
 
 const MODEL = "claude-sonnet-5-5";
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
@@ -18,9 +18,6 @@ const MAX_NAME_LENGTH = 50;
 const VerdictSchema = z.object({
   winner: z.enum(["A", "B"]),
   reasoning: z.string(),
-  // Safeguard for protected franchise characters the deterministic list cannot know.
-  // Piggybacks on the verdict call: no extra paid request.
-  protected_side: z.enum(["none", "A", "B", "both"]),
 });
 
 // --- Rate limiting: 5 requests/minute per IP (project-brief.md §5) ---
@@ -82,7 +79,7 @@ module.exports = async (req, res) => {
       .json({ error: `By my lute, that name is a saga! The herald can only bellow ${MAX_NAME_LENGTH} letters or fewer. Trim thy title, brave soul!` });
   }
 
-  // Repeat the client checks server-side (identical fighters, known protected characters).
+  // Repeat the client check server-side (two different fighters).
   const matchup = validateMatchup(fighterA, fighterB);
   if (!matchup.ok) {
     return res.status(422).json({ code: matchup.code, error: matchup.message });
@@ -103,11 +100,6 @@ module.exports = async (req, res) => {
     });
   }
 
-  // The judge flagged a protected franchise character: reject, discard the images.
-  if (verdictR.value.protected_side !== "none") {
-    return res.status(422).json({ code: "invalid_matchup", error: PROTECTED_MESSAGE });
-  }
-
   // Moderation-blocked is its own case, checked before generic image failure.
   const blocked = [
     ["A", imageAR],
@@ -116,13 +108,14 @@ module.exports = async (req, res) => {
   if (blocked) {
     const [side] = blocked;
     const name = side === "A" ? fighterA : fighterB;
-    // Provider safety-system rejection (can be a false positive on names that also
-    // belong to modern franchises). Log which fighter so it can be diagnosed.
+    // Provider safety-system rejection. We never retry with a different subject and never
+    // swap in another character: the player is told and can reword. Log which fighter so it
+    // can be diagnosed.
     console.warn(`Image moderation blocked side ${side}: "${name}"`);
     return res.status(422).json({
       code: "moderation_blocked",
       side,
-      error: `The portrait painter refused to paint "${name}" this time. That is the image service's own safety filter, not a ruling against this fighter. Try again, or word the challenger a little differently (for example "armored warriors" instead of a bare name).`,
+      error: `The portrait painter could not paint "${name}" (Fighter ${side}). The image service has its own safety rules, and it sometimes declines real people, brand-specific looks, or violent wording. Nothing was swapped or changed, and your fighters are still in the boxes. Reword that description (for example, describe the look and gear: "a caped knight in silver armor") and sound the horn again.`,
     });
   }
 

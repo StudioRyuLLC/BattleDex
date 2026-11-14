@@ -10,7 +10,7 @@ Battleground: type two fighters, get an AI verdict on who wins plus one AI-gener
 
 ## Commands
 
-- No build, lint, or test tooling exists yet (`npm run build` is just an echo; `vercel.json` only sets `outputDirectory: "."`).
+- No build or lint tooling (`npm run build` is just an echo; `vercel.json` only sets `outputDirectory: "."`). `npm test` runs the mocked Stage 9.2 fighter-policy tests (`tests/fighter-policy.test.js`, 38 checks, no network or paid calls).
 - Run locally: `vercel dev` (needed once `api/fight.js` exists; env vars come from `.env.local`). Until then any static server works, e.g. `npx serve .`.
 - Stage 3 adds `zod` as a dependency.
 
