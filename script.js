@@ -104,7 +104,7 @@ function narrationAvailable() {
 function narrationUnavailableReason() {
   const speech = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
   if (!speech) return 'Reading aloud is not supported in this browser.';
-  return 'Narration is off in the current sound mode. Choose "All sound" or "Voice only" in Settings to hear the verdict.';
+  return 'Narration is off in the current sound mode. Choose "All audio" or "Voice only" in Settings to hear the verdict.';
 }
 
 // Keeps the button label, icon, disabled state and the hint text in sync with reality.

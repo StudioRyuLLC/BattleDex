@@ -1,5 +1,6 @@
-// Stage 8 Audio Manager. Everything is synthesized with the Web Audio API (no audio
-// files, so nothing to license) plus the browser's speechSynthesis for voice.
+// Stage 8 Audio Manager. Background music is three licensed MP3s (Pixabay artists, credited in
+// the in-game guide, guide.js). Combat effects and the victory fanfare are synthesized with the
+// Web Audio API (no files, nothing to license), and the browser's speechSynthesis supplies voice.
 //
 // Scenes: 'home' / 'quiet' (Warrior MP3), 'dex' (Epic Battle MP3), 'battle' / 'victory' (Taiko MP3; battle adds the
 // synthesized skirmish effects, victory adds the synthesized fanfare), 'silent'.

@@ -2342,3 +2342,527 @@ body.modal-open .settings-fab {
     padding-top: 88px; /* room for the crown above the first portrait */
   }
 }
+
+/* ---------- Stage 9.1: help button + How to Play / About guide ---------- */
+.site-header {
+  position: relative;
+}
+
+@media (min-width: 641px) {
+  /* Reserve the corner for the help button so the nav never slides underneath it. */
+  .site-header {
+    padding-right: 100px;
+  }
+}
+
+.help-btn {
+  position: absolute;
+  z-index: 5;
+  top: 22px;
+  right: 40px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--gold-muted);
+  border-radius: 50%;
+  background: #17120D;
+  color: var(--gold);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 14px rgba(226, 140, 60, 0.25);
+}
+
+.help-btn:hover {
+  border-color: var(--gold);
+  background: #2A1F12;
+}
+
+.help-btn .icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2.4;
+}
+
+.help-tip {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--bronze);
+  border-radius: 4px;
+  background: #17120D;
+  color: var(--gold-pale);
+  font-family: var(--font-head);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.help-btn:focus-visible .help-tip {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .help-btn:hover .help-tip {
+    opacity: 1;
+  }
+}
+
+.help-btn.tip-off .help-tip {
+  opacity: 0 !important;
+}
+
+/* First visit: a gentle pulse until the guide has been opened once. */
+.help-btn.is-new {
+  border-color: var(--gold);
+  animation: help-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes help-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--bg), 0 0 0 3px var(--bg), 0 0 10px rgba(226, 182, 92, 0.25); }
+  50% { box-shadow: 0 0 0 3px var(--bg), 0 0 0 8px rgba(226, 182, 92, 0.28), 0 0 26px rgba(226, 182, 92, 0.6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Still noticeable, never moving. */
+  .help-btn.is-new {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px rgba(226, 182, 92, 0.45), 0 0 18px rgba(226, 182, 92, 0.45);
+  }
+
+  .help-tip {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .help-btn {
+    top: 6px;
+    right: max(14px, env(safe-area-inset-right, 0px));
+    width: 40px;
+    height: 40px;
+    min-height: 40px; /* the base button rule sets 44px */
+  }
+
+  /* Keep the masthead (brand + nav) clear of the corner button. */
+  .site-header {
+    padding-right: calc(max(14px, env(safe-area-inset-right, 0px)) + 50px);
+  }
+}
+
+body.modal-open .help-btn .help-tip {
+  display: none;
+}
+
+/* ----- Guide dialog ----- */
+.guide-box {
+  max-width: 800px;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: left;
+}
+
+.guide-top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: #17120D;
+}
+
+.guide-top .confirm-title {
+  margin: 0;
+  font-size: 20px;
+  text-align: left;
+}
+
+.guide-top .confirm-title:focus {
+  outline: none;
+}
+
+.guide-top .confirm-title:focus-visible {
+  outline: 2px solid #F3D58E;
+  outline-offset: 4px;
+}
+
+.guide-close {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.guide-body {
+  padding: 20px 24px 28px;
+  color: var(--text-soft);
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.guide-body p {
+  margin: 0 0 12px;
+}
+
+.guide-body a {
+  color: var(--gold-hi);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.guide-body a:hover {
+  color: var(--gold-pale);
+}
+
+.guide-read-row {
+  margin-bottom: 8px;
+}
+
+.guide-read {
+  min-height: 44px;
+  padding: 0 18px;
+  border-color: var(--gold-muted);
+  color: var(--gold-pale);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.guide-read:hover {
+  background: #2A1F12;
+}
+
+.guide-read.is-reading {
+  border-color: var(--gold-pale);
+  background: #3A2A12;
+}
+
+.guide-read[aria-disabled='true'] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.guide-read-note {
+  margin: 10px 0 0;
+  color: var(--text-soft);
+  font-size: 16px;
+  font-style: italic;
+}
+
+.guide-section {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.guide-h {
+  margin: 0 0 12px;
+  color: var(--gold-title);
+  font-family: var(--font-head);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.guide-h2 {
+  margin: 14px 0 8px;
+  color: var(--gold-muted);
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.guide-list {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.guide-list li {
+  margin-bottom: 8px;
+}
+
+.guide-list strong,
+.credit-scene {
+  color: var(--text-bright);
+}
+
+.guide-steps {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-step {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #1C150E, #17120D);
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  color: var(--text-bright);
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.step-num {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--gold-muted);
+  border-radius: 50%;
+  background: #17120D;
+  color: var(--gold);
+  font-size: 14px;
+}
+
+.step-text p {
+  margin: 0;
+  font-size: 17px;
+}
+
+/* Illustrations */
+.art {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 96px;
+}
+
+.art-form {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mini-input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 3px;
+  background: #0E0A07;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.mini-vs {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--gold-muted);
+  border-radius: 50%;
+  background: #17120D;
+  color: var(--gold);
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mini-frame {
+  display: block;
+  flex: none;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  border: 2px solid var(--gold-muted);
+  border-radius: 4px;
+  background: #0E0A07;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 12px rgba(226, 140, 60, 0.3);
+}
+
+.mini-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.art-duel .mini-frame,
+.art-dex .mini-frame,
+.mini-frame-sm {
+  width: 52px;
+  height: 52px;
+}
+
+.art-duel {
+  gap: 4px;
+}
+
+.art-watch svg:not(.icon) {
+  width: 96px;
+  height: 96px;
+}
+
+.art-watch-icon {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 34px;
+  height: 34px;
+  color: var(--gold);
+}
+
+.art-verdict {
+  flex-direction: column;
+  gap: 0;
+}
+
+.art-verdict .mini-frame {
+  width: 78px;
+  height: 78px;
+}
+
+.mini-crown {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -8px;
+  color: var(--gold-hi);
+}
+
+.mini-crown .icon {
+  width: 26px;
+  height: 26px;
+}
+
+.mini-ribbon {
+  margin-top: -9px;
+  padding: 1px 10px;
+  border: 1px solid var(--gold-pale);
+  background: #17120D;
+  color: var(--gold-pale);
+  font-family: var(--font-head);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mini-save {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gold-muted);
+  border-radius: 50%;
+  color: var(--gold);
+}
+
+.mini-save .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.tech-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+}
+
+.tech-col .guide-list {
+  padding-left: 20px;
+}
+
+.creator-line {
+  color: var(--gold-pale);
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.credit-list {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.credit-list li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.credit-scene {
+  font-family: var(--font-head);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.guide-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+@media (max-width: 640px) {
+  .guide-top {
+    padding: 8px 10px 8px 16px;
+  }
+
+  .guide-top .confirm-title {
+    font-size: 16px;
+    letter-spacing: 0.05em;
+  }
+
+  .guide-close {
+    padding: 0 12px;
+  }
+
+  .guide-body {
+    padding: 16px 16px 24px;
+    font-size: 17px;
+  }
+
+  .guide-step {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .step-title {
+    justify-content: center;
+  }
+
+  .tech-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-read {
+    width: 100%;
+  }
+}

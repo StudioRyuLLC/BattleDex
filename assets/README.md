@@ -1,17 +1,19 @@
-# Battleground media assets (Stage 8)
+# Battleground media assets (Stage 8, updated Stage 9.1)
 
-## Audio: no third-party files
-All music, combat effects, the victory fanfare and the ambience are **synthesized at runtime**
-by `audio.js` using the Web Audio API (oscillators, filtered noise, envelopes). They are original
-to this project, so there are no audio files to license, host or optimize.
+## Audio
+Background music is three third-party MP3s from Pixabay (`audio/music/`); everything else is
+synthesized at runtime by `audio.js` with the Web Audio API, so it is original to this project.
+Music credits are shown to players in the How to Play / About guide (`guide.js`, `MUSIC_CREDITS`).
+Add any future sound-effect contributor to `SFX_CREDITS` in `guide.js` and to the table below.
 
-| Sound | Source | License |
+| Sound | Source | License / credit |
 |---|---|---|
-| Home / BattleDex ambience ("The Gathering Storm") | synthesized in `audio.js` | original, project-owned |
-| Battle music ("Clash of Champions") | synthesized in `audio.js` | original, project-owned |
-| Victory fanfare ("The Champion Rises") | synthesized in `audio.js` | original, project-owned |
+| Home / Entry music | `audio/music/hitslab-warrior-soldier-fighting-music-489236.mp3`, Ievgen Poltavskyi (HitsLab), Pixabay | Pixabay Content License, credited in the guide |
+| BattleDex music | `audio/music/yevhenastafiev-epic-epic-battle-607250.mp3`, Yevhen Astafiev, Pixabay | Pixabay Content License, credited in the guide |
+| Judging / Victory music | `audio/music/alec_koff-japan-taiko-490663.mp3`, Alec Koff, Pixabay | Pixabay Content License, credited in the guide |
+| Victory fanfare | synthesized in `audio.js` | original, project-owned |
 | Sword clash / strike / heavy impact / crowd ambience | synthesized in `audio.js` | original, project-owned |
-| Spoken announcements | browser Web Speech API (`speechSynthesis`) | no assets, no paid TTS |
+| Spoken announcements and narration | browser Web Speech API (`speechSynthesis`) | no assets, no paid TTS |
 
 ## Animated fighters
 `animations/manifest.json` maps a normalized fighter name (lowercase, punctuation removed, leading
