@@ -1,6 +1,10 @@
 // Stage 8 Audio Manager. Background music is three licensed MP3s (Pixabay artists, credited in
 // the in-game guide, guide.js). Combat effects and the victory fanfare are synthesized with the
 // Web Audio API (no files, nothing to license), and the browser's speechSynthesis supplies voice.
+// Stage 9.3.1: while the Judging/Loading screen is up (scene 'battle'), the two fighters' text is
+// classified into sound palettes (PALETTE_RULES) and Pixabay MP3 clips (COMBAT_SOUNDS) are scheduled
+// at varied intervals on a separate, speech-ducked bus. They stop before the verdict is shown;
+// the Victory/Verdict screen never plays combat effects.
 //
 // Scenes: 'home' / 'quiet' (Warrior MP3), 'dex' (Epic Battle MP3), 'battle' / 'victory' (Taiko MP3; battle adds the
 // synthesized skirmish effects, victory adds the synthesized fanfare), 'silent'.
@@ -52,6 +56,7 @@ const BGAudio = (function () {
   let voiceSeq = 0; // increments whenever a new music voice starts (restart detection in tests)
   let fighterTags = new Set();
   let mp3Bus = null; // all MP3 music passes through here (ducking happens on this bus)
+  let combatBus = null; // AI-directed combat effects (Stage 9.3); ducked while speech plays
   let musicScene = null; // scene whose music is currently playing (mp3 or synthesized)
   const mp3 = { key: null, state: 'idle', token: 0, fading: false, timers: new Set(), els: {} }; // state: idle | starting | playing | gap
 
@@ -79,6 +84,7 @@ const BGAudio = (function () {
   }
 
   function setFighters(a, b) {
+    fighterNames = [String(a || ''), String(b || '')];
     fighterTags = new Set();
     for (const n of [a, b]) if (n) classify(n).forEach((t) => fighterTags.add(t));
   }
@@ -106,6 +112,9 @@ const BGAudio = (function () {
     mp3Bus = ctx.createGain();
     mp3Bus.gain.value = 1;
     mp3Bus.connect(master);
+    combatBus = ctx.createGain();
+    combatBus.gain.value = COMBAT_LEVEL;
+    combatBus.connect(master);
     const len = ctx.sampleRate * 2;
     noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
@@ -471,6 +480,7 @@ const BGAudio = (function () {
   const played = {}; // effect name -> count this page load (test visibility)
   function startSfxSession() {
     if (sfxSession || !running()) return;
+    const bedOnly = true; // Stage 9.3.1: the MP3 combat library supplies the hits; this keeps only the faint crowd bed
     const bus = ctx.createGain();
     bus.gain.value = 1;
     bus.connect(sfxBus);
@@ -524,7 +534,7 @@ const BGAudio = (function () {
         timer = setTimeout(next, rand(1300, 3600)); // lull between bursts
       }
     };
-    timer = setTimeout(next, 600);
+    if (!bedOnly) timer = setTimeout(next, 600);
 
     sfxSession = {
       stop() {
@@ -754,6 +764,407 @@ const BGAudio = (function () {
     if (t && mp3.state === 'playing' && t.el.paused) t.el.play().catch(() => {});
   }
 
+  // ---------- Stage 9.3 / 9.3.1: combat sound library (played while judging) ----------
+  // Keys are 'type.subtype'; the palettes below choose keys from the fighters' text, and this registry
+  // is the ONLY place a key turns into a file. Nothing from the server or the AI picks a file. Each clip is a window into an MP3: { file, start, dur, gain, rate }
+  // (start/dur in seconds; several source files are long compilations, so only one hit is cut
+  // out of them). Add a clip by adding a line; add its creator to SFX_CREDITS in guide.js.
+  const SFX_DIR = 'assets/audio/';
+  const clip = (file, start, dur, gain, rate) => ({ file, start, dur, gain: gain || 1, rate: rate || 1 });
+  const WHOOSH = 'ponjisk-whooshslash-sounds-different-pitches-vol2-187377.mp3';
+  const SWORDS = 'freesound_community-sword-against-sword-6341.mp3';
+  const ROARS = 'febixaj5-edited-dinosaur-roars-15-566149.mp3';
+  const COMBAT_SOUNDS = {
+    'weapon_swing.blade': [
+      clip('dragon-studio-sword-slice-393847.mp3', 0, 1.3, 0.9),
+      clip('dragon-studio-sword-slice-2-393845.mp3', 0, 1.3, 0.9),
+      clip(WHOOSH, 1.15, 0.5, 0.9),
+      clip(WHOOSH, 3.3, 0.5, 0.9),
+      clip(WHOOSH, 6.55, 0.5, 0.9),
+    ],
+    'weapon_swing.heavy_blade': [clip('dragon-studio-violent-sword-slice-393839.mp3', 0, 1.5, 1), clip(WHOOSH, 13.05, 0.5, 1, 0.8)],
+    'metal_impact.blade_clash': [
+      clip('dragon-studio-sword-clashhit-393837.mp3', 0, 0.9, 1.4),
+      clip('magiaz-swords-423819.mp3', 0, 0.7, 1),
+      clip('magiaz-swords-423816.mp3', 0.1, 0.8, 1.1),
+      clip(SWORDS, 2.35, 0.8, 0.9),
+      clip(SWORDS, 11, 0.9, 0.9),
+      clip(SWORDS, 19.45, 0.8, 0.9),
+    ],
+    'metal_impact.shield': [
+      clip('dragon-studio-sword-clashhit-393837.mp3', 0, 0.9, 1.6, 0.7),
+      clip(SWORDS, 4.45, 1.4, 0.9),
+      clip('magiaz-swords-423816.mp3', 2.6, 0.8, 1.1),
+    ],
+    'physical_impact.punch': [clip('universfield-punch-03-352040.mp3', 0, 1, 1.1)],
+    'physical_impact.kick': [clip('universfield-punch-03-352040.mp3', 0, 1, 1.2, 0.85)],
+    'physical_impact.heavy_hit': [clip('universfield-punch-03-352040.mp3', 0, 1.3, 1.5, 0.65)],
+    // No archery recordings are in the library yet: arrows reuse the whoosh clips, pitched up.
+    'projectile.arrow': [clip(WHOOSH, 4.35, 0.5, 0.8, 1.5), clip(WHOOSH, 9.8, 0.5, 0.8, 1.4), clip(WHOOSH, 14.25, 0.5, 0.8, 1.5)],
+    'gunfire.pistol': [clip('foisal72-gun-fire-346766.mp3', 0.5, 1.4, 1.5)],
+    'gunfire.auto': [clip('soundreality-auto-gun-shots-312660.mp3', 0, 1.8, 0.9)],
+    'gunfire.rifle': [clip('freesound_community-m4-assault-rifle-long-burst-102682.mp3', 0.1, 2.2, 0.55)],
+    'energy_weapon.blaster': [clip('universfield-sci-fi-blaster-shot-229313.mp3', 0, 0.9, 1.2)],
+    'energy_weapon.beam': [clip('freesound_community-beam-8-43831.mp3', 0, 0.9, 1.3), clip('yodguard-short-energy-beam-shot-3-482517.mp3', 0, 1.5, 1)],
+    'energy_weapon.plasma': [clip('lordsonny-plasma-gun-fire-162136.mp3', 0.1, 2, 0.5)],
+    'energy_weapon.energy_gun': [clip('freesound_community-sci-fi-energy-gun-39409.mp3', 0, 1.8, 1.2)],
+    'mechanical.servo': [clip('audiopapkin-sound-design-elements-robot-mechanism-015-336704.mp3', 0.5, 2, 0.9)],
+    'mechanical.machinery': [clip('audiopapkin-sound-design-elements-robot-mechanism-032-500870.mp3', 0.35, 2.6, 1)],
+    'magic.ice': [clip('dragon-studio-elemental-spell-impact-ice-448564.mp3', 1, 1.9, 0.9)],
+    'magic.elemental': [clip('asproductionmusic-magic-boom-fx-587687.mp3', 0.4, 2.2, 0.8)],
+    'magic.arcane': [clip('asproductionmusic-magic-boom-fx-587687.mp3', 0.4, 2.2, 0.7, 1.25)],
+    'creature.roar': [clip(ROARS, 0.25, 3, 0.8), clip(ROARS, 11.8, 3.5, 0.8), clip(ROARS, 19.3, 3.2, 0.8), clip(ROARS, 46.05, 3.5, 0.8)],
+    'creature.growl': [clip(ROARS, 32.7, 1.8, 0.8, 1.1), clip(ROARS, 36.4, 2, 0.8, 1.1), clip(ROARS, 52.85, 1.35, 0.8, 1.1)],
+    'explosion.blast': [clip('soundreality-explosion-fx-343683.mp3', 0.1, 2.6, 0.8)],
+    'voice.war_cry': [
+      clip('jesuschristisgod-army-of-soldiers-battle-cry-322709.mp3', 0.5, 1.3, 1.4),
+      clip('jesuschristisgod-army-of-soldiers-battle-cry-322709.mp3', 4.9, 1.9, 1.4),
+    ],
+    'voice.grunt_male': [
+      clip('phatphrogstudio-male-fighter-voice-heavy-attack-grunt-544355.mp3', 0, 0.7, 1),
+      clip('phatphrogstudio-male-soldier-voice-attack-grunt-520841.mp3', 0, 0.72, 1),
+      clip('phatphrogstudio-male-fighter-voice-2-heavy-attack-grunt-582547.mp3', 0, 0.86, 1),
+    ],
+    'voice.grunt_female': [clip('phatphrogstudio-female-fighter-voice-heavy-attack-grunt-544351.mp3', 0, 0.86, 1)],
+    'voice.yell': [clip('jimiwild-hilarious-yelling-123621.mp3', 0.1, 2, 1.6), clip('jimiwild-hilarious-yelling-123621.mp3', 4.3, 2, 1.6)],
+  };
+  // Sustained beds: looped whole files, one at a time, always under the one-shots and narration.
+  const COMBAT_AMBIENCE = {
+    'ambience.skirmish': clip('mavopix-brutal-battle-159869.mp3', 0, 0, 4), // very quiet recording
+    'ambience.crowd': clip('freesound_community-angry-mob-loop-6847.mp3', 0, 0, 1.2),
+    'ambience.warfield': clip('two_hats-wwii-battle-408734.mp3', 0, 0, 0.45), // very loud recording
+  };
+
+  const COMBAT_LEVEL = 0.6; // overall level of AI-directed effects (on top of each clip's own gain)
+  const AMBIENCE_LEVEL = 0.3;
+  const COMBAT_MAX_ACTIVE = 4; // one-shots sounding at the same moment
+  const COMBAT_COOLDOWN_MS = 450; // the same type.subtype can't retrigger faster than this
+  const COMBAT_LATE_MS = 2500; // a clip that finishes loading later than this after its cue is dropped
+  const COMBAT_DUCK = 0.4; // effect level multiplier while speech plays
+
+  let combat = null; // active judging session (see newCombatSession)
+  let fighterNames = ['', '']; // the two fighter texts for the current battle
+  const clipCache = new Map(); // "file@start+dur" -> Promise<AudioBuffer|null>
+  const decoding = new Map(); // file -> in-flight Promise<AudioBuffer>
+  const ambienceCache = new Map(); // file -> Promise<AudioBuffer|null>
+  const combatStats = { played: [], skipped: 0, missing: 0, maxActive: 0, sessions: 0 };
+
+  const combatPossible = () => musicOn() && running() && !!combatBus;
+
+  function fetchDecode(file) {
+    if (decoding.has(file)) return decoding.get(file);
+    const p = fetch(SFX_DIR + file)
+      .then((r) => {
+        if (!r.ok) throw new Error('missing ' + file);
+        return r.arrayBuffer();
+      })
+      .then((ab) => ctx.decodeAudioData(ab))
+      .finally(() => decoding.delete(file));
+    decoding.set(file, p);
+    return p;
+  }
+
+  // Decode, then keep only the needed window as its own small buffer (the full file is dropped).
+  function loadClip(c) {
+    const key = `${c.file}@${c.start}+${c.dur}`;
+    if (clipCache.has(key)) return clipCache.get(key);
+    const p = fetchDecode(c.file)
+      .then((full) => {
+        const sr = full.sampleRate;
+        const from = Math.min(full.length - 1, Math.floor(c.start * sr));
+        const to = Math.min(full.length, from + Math.max(1, Math.floor(c.dur * sr)));
+        const out = ctx.createBuffer(full.numberOfChannels, to - from, sr);
+        for (let ch = 0; ch < full.numberOfChannels; ch++) out.getChannelData(ch).set(full.getChannelData(ch).subarray(from, to));
+        return out;
+      })
+      .catch(() => {
+        combatStats.missing++;
+        clipCache.delete(key); // a later battle may retry (e.g. after a network blip)
+        return null;
+      });
+    clipCache.set(key, p);
+    return p;
+  }
+
+  function loadAmbience(c) {
+    if (ambienceCache.has(c.file)) return ambienceCache.get(c.file);
+    const p = fetchDecode(c.file).catch(() => {
+      combatStats.missing++;
+      ambienceCache.delete(c.file);
+      return null;
+    });
+    ambienceCache.set(c.file, p);
+    return p;
+  }
+
+  // Pick a variant, never the one this key used last (so repeated cues don't sound identical).
+  const lastVariant = {};
+  // The three long compilation files take a second or two to decode, so the opening hits of a
+  // soundscape use only the small files ("light"); the big ones are decoded in the background.
+  const BIG_FILES = new Set(['febixaj5-edited-dinosaur-roars-15-566149.mp3', 'freesound_community-sword-against-sword-6341.mp3']);
+  function pickClip(key, light) {
+    const all = COMBAT_SOUNDS[key];
+    const list = all && light ? all.filter((c) => !BIG_FILES.has(c.file)) : all;
+    if (!list || !list.length) return null;
+    let i = Math.floor(Math.random() * list.length);
+    if (list.length > 1 && i === lastVariant[key]) i = (i + 1) % list.length;
+    lastVariant[key] = i;
+    return list[i];
+  }
+
+  // Silence and clean up the active session: timers, sources and nodes. Safe to call any time.
+  function stopCombat(fade) {
+    const c = combat;
+    if (!c) return;
+    combat = null;
+    c.alive = false;
+    c.timers.forEach((id) => clearTimeout(id));
+    c.timers.clear();
+    const f = Math.max(0.03, fade === undefined ? 0.15 : fade);
+    try {
+      const now = ctx.currentTime;
+      c.bus.gain.cancelScheduledValues(now);
+      c.bus.gain.setValueAtTime(c.bus.gain.value, now);
+      c.bus.gain.linearRampToValueAtTime(0.0001, now + f);
+    } catch {
+      // ignore
+    }
+    setTimeout(() => {
+      c.sources.forEach((s) => {
+        try {
+          s.stop();
+        } catch {
+          // already stopped
+        }
+      });
+      c.sources.clear();
+      try {
+        c.bus.disconnect();
+      } catch {
+        // ignore
+      }
+    }, f * 1000 + 40);
+  }
+
+  function combatLater(c, fn, ms) {
+    const id = setTimeout(() => {
+      c.timers.delete(id);
+      if (c.alive) fn();
+    }, Math.max(0, ms));
+    c.timers.add(id);
+  }
+
+  function fireOneShot(c, ev, due) {
+    const key = `${ev.type}.${ev.subtype}`;
+    const now = performance.now();
+    if ((c.last[key] !== undefined && now - c.last[key] < COMBAT_COOLDOWN_MS) || c.active >= COMBAT_MAX_ACTIVE) {
+      combatStats.skipped++;
+      return;
+    }
+    const cl = ev.clip || pickClip(key, ev.light);
+    if (!cl) {
+      if (!ev.light) combatStats.missing++;
+      return;
+    }
+    c.last[key] = now;
+    c.active++; // reserve the slot now, so a burst of cues can't all pass the limit check
+    combatStats.maxActive = Math.max(combatStats.maxActive, c.active);
+    loadClip(cl).then((buf) => {
+      if (!c.alive || !buf || !running() || performance.now() - due > COMBAT_LATE_MS) {
+        c.active--;
+        if (buf) combatStats.skipped++;
+        return;
+      }
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = cl.rate;
+        const g = ctx.createGain();
+        const t = ctx.currentTime + 0.01;
+        const len = buf.duration / cl.rate;
+        const release = Math.min(0.35, len * 0.4);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(cl.gain, t + 0.006);
+        g.gain.setValueAtTime(cl.gain, Math.max(t + 0.006, t + len - release));
+        g.gain.linearRampToValueAtTime(0.0001, t + len);
+        src.connect(g);
+        g.connect(panned(c.bus, rand(-0.35, 0.35)));
+        c.sources.add(src);
+        src.onended = () => {
+          c.active--;
+          c.sources.delete(src);
+          try {
+            g.disconnect();
+          } catch {
+            // ignore
+          }
+        };
+        src.start(t);
+        combatStats.played.push(key);
+        if (combatStats.played.length > 200) combatStats.played.shift();
+      } catch {
+        c.active--;
+        combatStats.skipped++;
+      }
+    });
+  }
+
+  function startAmbience(c, ev) {
+    if (c.ambience || !c.alive) return;
+    const key = `${ev.type}.${ev.subtype}`;
+    const cl = COMBAT_AMBIENCE[key];
+    if (!cl) return;
+    c.ambience = { key };
+    loadAmbience(cl).then((buf) => {
+      if (!c.alive || !buf || !running()) return;
+      try {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        const g = ctx.createGain();
+        const t = ctx.currentTime;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.linearRampToValueAtTime(AMBIENCE_LEVEL * cl.gain, t + 1.2); // gentle swell in, never a spike
+        src.connect(g).connect(c.bus);
+        c.sources.add(src);
+        c.ambience.src = src;
+        c.ambience.gain = g;
+        src.start(t);
+        combatStats.played.push(key);
+      } catch {
+        // ambience is optional
+      }
+    });
+  }
+
+  // Fade the sustained bed out (one-shots finish on their own). Safe to call repeatedly.
+  function endAmbience(c, fade) {
+    const a = c.ambience;
+    if (!a || !a.gain || a.ending) return;
+    a.ending = true;
+    const now = ctx.currentTime;
+    a.gain.gain.cancelScheduledValues(now);
+    a.gain.gain.setValueAtTime(a.gain.gain.value, now);
+    a.gain.gain.linearRampToValueAtTime(0.0001, now + fade);
+  }
+
+  function newCombatSession(mode, palette) {
+    stopCombat(0.05); // a new battle always replaces the old one
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    bus.connect(combatBus);
+    combat = { mode, alive: true, bus, timers: new Set(), sources: new Set(), active: 0, last: {}, ambience: null, palette, lastKey: null, lastLoud: -1e9, count: 0 };
+    combatStats.sessions++;
+    return combat;
+  }
+
+  // ---------- Stage 9.3.1: fighter metadata -> sound palette ----------
+  // The only fighter metadata the game has is the text the player typed (name and short
+  // description), so that text is classified with whole-word rules into sound "palettes": weights
+  // over the type.subtype keys of COMBAT_SOUNDS. No AI is involved and nothing is requested from the
+  // server. A fighter that matches nothing gets the generic brawl palette, so the soundscape is never
+  // empty, and a fighter is never assumed to hold a sword or gun unless its text says so.
+  const PALETTE_RULES = [
+    ['blade', /\b(swords?|swordsm[ae]n|swordswoman|samurai|katanas?|knights?|ninjas?|vikings?|pirates?|gladiators?|spartans?|barbarians?|paladins?|crusaders?|templars?|assassins?|musketeers?|excalibur|rapier|sabers?|sabres?|scimitars?|daggers?|knives|knife|blades?|elves|elf|dwarves|dwarf|amazons?|achilles|king arthur|conan|zorro|jedi|sith|warriors?|centurions?|legion(?:s|naires?)?|swashbucklers?|shogun|ronin)\b/, { 'weapon_swing.blade': 3, 'metal_impact.blade_clash': 3, 'metal_impact.shield': 0.8, 'voice.grunt_male': 0.8 }],
+    ['heavy', /\b(axes?|greatswords?|war ?hammers?|hammers?|maces?|clubs?|barbarians?|ogres?|trolls?|juggernauts?|thor|hercules|minotaurs?|orcs?|berserkers?|executioners?)\b/, { 'weapon_swing.heavy_blade': 2.5, 'physical_impact.heavy_hit': 1.5, 'metal_impact.shield': 0.6 }],
+    ['shield', /\b(shields?|knights?|spartans?|paladins?|crusaders?|templars?|captain america|legion(?:s|naires?)?|centurions?)\b/, { 'metal_impact.shield': 2 }],
+    ['unarmed', /\b(boxers?|boxing|martial arts?|martial artists?|karate|kung ?fu|judo|jiu ?jitsu|taekwondo|muay thai|wrestlers?|wrestling|brawlers?|mma|monks?|kickboxers?|bruce lee|chuck norris|rocky|ali|tyson|ryu|ken|goku|street fighters?|bare[- ]?knuckle|pugilists?|sumo|fists?|punch(?:er|ers)?|bouncers?|bodybuilders?|hulk|gorillas?|apes?|king kong)\b/, { 'physical_impact.punch': 3, 'physical_impact.kick': 2, 'physical_impact.heavy_hit': 1, 'voice.grunt_male': 1 }],
+    ['archer', /\b(archers?|bow|bows|bowmen|bowman|crossbows?|robin hood|legolas|hawkeye|katniss|artemis|cupid|rangers?|hunters?|slingers?|longbow|marksm[ae]n|apollo|arrows?)\b/, { 'projectile.arrow': 4, 'weapon_swing.blade': 0.6, 'voice.grunt_male': 0.4 }],
+    ['magic', /\b(wizards?|warlocks?|witch(?:es)?|sorcer(?:er|ers|ess|esses)|mages?|necromancers?|liches?|lich|genies?|djinn|fairy|fairies|elementals?|ghosts?|spectres?|wraiths?|phoenix|medusa|loki|odin|merlin|gandalf|dumbledore|harry potter|doctor strange|magicians?|druids?|shamans?|demons?|angels?|spells?|magic|magical|mystic|enchant\w*|sorcery|zeus|poseidon|hades|vampires?|sailor moon|elsa)\b/, { 'magic.arcane': 3, 'magic.elemental': 2, 'voice.yell': 0.4 }],
+    ['elemental', /\b(fire|flames?|flaming|lava|volcano|inferno|lightning|thunder|storm|electric|electricity|pyro|blaze|ember|solar|sun|wind|tornado|hurricane|earthquake|earth|stone|rock|golem|thor|zeus)\b/, { 'magic.elemental': 3 }],
+    ['ice', /\b(ice|icy|frost|frozen|snow|blizzard|glacier|winter|cold|elsa|freeze|yeti|snowman|iceman|sub-zero|polar)\b/, { 'magic.ice': 3.5 }],
+    ['dragon', /\b(dragons?|wyrms?|wyverns?|drakes?|hydras?|basilisks?|leviathans?|godzilla|dinosaurs?|t-?rex|tyrannosaurus|raptors?|kaiju|kraken|balrog|smaug|charizard)\b/, { 'creature.roar': 4, 'magic.elemental': 1.4, 'physical_impact.heavy_hit': 1, 'explosion.blast': 0.5 }],
+    ['beast', /\b(wolf|wolves|werewolf|werewolves|werebears?|bears?|lions?|tigers?|panthers?|boars?|dogs?|cats?|cows?|bulls?|horses?|snakes?|serpents?|spiders?|griffins?|gryphons?|manticores?|chimeras?|sharks?|crocodiles?|alligators?|gators?|hounds?|beasts?|monsters?|gremlins?|goblins?|rats?|rabbits?|bigfoot|sasquatch|cerberus|animals?|creatures?|hippos?|rhinos?|elephants?|mammoths?|pikachu|aliens?|zombies?|predators?|xenomorphs?)\b/, { 'creature.growl': 3.5, 'creature.roar': 1, 'physical_impact.heavy_hit': 1, 'physical_impact.punch': 0.5 }],
+    ['robot', /\b(robots?|androids?|cyborgs?|mechs?|mechas?|terminators?|droids?|machines?|ai|automaton|transformers?|optimus prime|megatron|iron man|robocop|wall-?e|daleks?|cybermen|gundam|exosuits?|bots?|mechanical|steampunk|clockwork|sentinels?|ultron|skynet|r2-?d2|c-?3po)\b/, { 'mechanical.servo': 3, 'mechanical.machinery': 2, 'energy_weapon.blaster': 1.5, 'energy_weapon.beam': 1.2 }],
+    ['scifi', /\b(lasers?|blasters?|plasma|space|spaceships?|starships?|sci-?fi|stormtroopers?|darth vader|vader|samus|master chief|halo|cyber\w*|futuristic|astronauts?|aliens?|saiyan|ray ?guns?|photon|star wars|star trek|superman|cosmic|galactic|energy|force)\b/, { 'energy_weapon.blaster': 2.5, 'energy_weapon.beam': 2, 'energy_weapon.plasma': 1.5, 'energy_weapon.energy_gun': 1.5 }],
+    ['gun', /\b(soldiers?|seals?|navy|marines?|army|commandos?|delta|snipers?|cowboys?|gunslingers?|gunmen|gunman|police|cops?|swat|special forces|rambo|john wick|mercenar(?:y|ies)|gangsters?|mobsters?|outlaws?|sheriffs?|pistols?|guns?|rifles?|machine guns?|militia|infantry|troops?|squad|platoon|battalion|spies?|james bond|agents?|bounty hunters?|punisher|deadpool|terrorists?|military|gi joe|fbi|cia|green berets?|paratroopers?|assault|shooters?)\b/, { 'gunfire.auto': 2.5, 'gunfire.rifle': 2, 'gunfire.pistol': 2, 'voice.war_cry': 0.8, 'voice.grunt_male': 0.8 }],
+    ['explosive', /\b(tanks?|bombs?|bombers?|grenades?|rockets?|nukes?|nuclear|missiles?|dynamite|artillery|cannons?|explosi\w+|bazookas?|landmines?|demolition|warship|battleship|helicopters?|fighter jets?|jets?|tnt)\b/, { 'explosion.blast': 3, 'gunfire.auto': 1 }],
+    ['female', /\b(woman|women|female|girls?|queens?|princess(?:es)?|amazons?|valkyrie|valkyries|witch(?:es)?|goddess(?:es)?|lady|ladies|wonder woman|xena|cleopatra|joan of arc|boudica|lara croft|heroine|empress|maiden|sorceress|huntress)\b/, { 'voice.grunt_female': 2.5 }],
+    ['group', /\b(squad|army|armies|horde|hordes|legion|legions|platoon|battalion|crowd|mob|team|troops?|soldiers|warriors|knights|vikings|pirates|samurai|ninjas|gladiators|spartans|barbarians|orcs|goblins|zombies|marines|commandos|\d{2,}|dozens?|hundreds?|thousands?|swarm|pack|regiment|brigade|gang|clan|tribe)\b/, { 'voice.war_cry': 2 }],
+  ];
+  // Tags that only add flavor on top of a real fighting style (they never count as "recognized").
+  const FLAVOR_TAGS = new Set(['female', 'group', 'shield', 'elemental', 'ice']);
+  const FALLBACK_PALETTE = { 'weapon_swing.blade': 1.5, 'physical_impact.punch': 2, 'physical_impact.kick': 1, 'physical_impact.heavy_hit': 1, 'metal_impact.blade_clash': 1, 'voice.grunt_male': 1, 'voice.yell': 0.8, 'explosion.blast': 0.3 };
+  const LOUD_KEYS = new Set(['explosion.blast', 'creature.roar', 'gunfire.auto', 'gunfire.rifle', 'gunfire.pistol', 'magic.elemental', 'magic.arcane', 'energy_weapon.plasma', 'physical_impact.heavy_hit', 'weapon_swing.heavy_blade', 'voice.war_cry']);
+
+  // Weights for one fighter, scaled so every fighter contributes the same total (a balanced mix
+  // when two different palettes meet). Also returns the matched tag names.
+  function paletteFor(name) {
+    const n = String(name || '').toLowerCase();
+    const w = {};
+    const tags = [];
+    for (const [tag, re, weights] of PALETTE_RULES) {
+      if (!re.test(n)) continue;
+      tags.push(tag);
+      for (const [k, v] of Object.entries(weights)) w[k] = (w[k] || 0) + v;
+    }
+    if (!tags.some((t) => !FLAVOR_TAGS.has(t))) {
+      // nothing recognizable: generic brawl (half strength if some flavor tag matched)
+      for (const [k, v] of Object.entries(FALLBACK_PALETTE)) w[k] = (w[k] || 0) + v * (tags.length ? 0.5 : 1);
+      tags.push('generic');
+    }
+    const total = Object.values(w).reduce((s, v) => s + v, 0) || 1;
+    for (const k of Object.keys(w)) w[k] = (w[k] / total) * 10;
+    return { weights: w, tags };
+  }
+
+  function combatPalette(a, b) {
+    const pa = paletteFor(a);
+    const pb = paletteFor(b);
+    const weights = {};
+    for (const p of [pa, pb]) for (const [k, v] of Object.entries(p.weights)) weights[k] = (weights[k] || 0) + v;
+    const text = `${a || ''} ${b || ''}`.toLowerCase();
+    const ambience = /\b(army|armies|war|battalion|legion|legions|platoon|regiment|troops?|soldiers|navy|marines)\b/.test(text) ? 'warfield' : /\b(crowd|mob|horde|hordes|gang|clan|tribe|pack|swarm|\d{2,})\b/.test(text) ? 'crowd' : 'skirmish';
+    return { weights, tags: [...new Set([...pa.tags, ...pb.tags])], ambience, fighters: [pa.tags, pb.tags] };
+  }
+
+  function pickWeighted(weights, skip) {
+    const entries = Object.entries(weights).filter(([k, v]) => v > 0 && !skip(k));
+    if (!entries.length) return null;
+    let r = Math.random() * entries.reduce((s, [, v]) => s + v, 0);
+    for (const [k, v] of entries) {
+      r -= v;
+      if (r <= 0) return k;
+    }
+    return entries[entries.length - 1][0];
+  }
+
+  // ---------- Judging soundscape: runs only while the loading ("battle") scene is up ----------
+  // One timer chain: a first hit after ~0.9 s, then cues at varied intervals (1.1-2.8 s) with a
+  // longer lull every 5-7 cues. It never repeats the previous effect, keeps two loud effects at least
+  // 2.4 s apart, and honors the concurrency limit and per-effect cooldown in fireOneShot().
+  // It runs for as long as judging does, however long, and stopCombat() ends it at once.
+  const COMBAT_LOUD_GAP_MS = 2400;
+  function startCombat() {
+    if (combat || !combatPossible() || !(fighterNames[0] || fighterNames[1])) return;
+    const pal = combatPalette(fighterNames[0], fighterNames[1]);
+    const c = newCombatSession('judging', pal);
+    // Decode the three most likely effects (all variants) before they are needed.
+    Object.entries(pal.weights).sort((x, y) => y[1] - x[1]).slice(0, 3).forEach(([k]) => (COMBAT_SOUNDS[k] || []).forEach(loadClip));
+    startAmbience(c, { type: 'ambience', subtype: pal.ambience });
+    let untilLull = 5 + Math.floor(Math.random() * 3);
+    const step = () => {
+      const now = performance.now();
+      const loudOk = now - c.lastLoud >= COMBAT_LOUD_GAP_MS;
+      const key = pickWeighted(pal.weights, (k) => k === c.lastKey || (c.count < 2 && !(COMBAT_SOUNDS[k] || []).some((x) => !BIG_FILES.has(x.file))) || (!loudOk && LOUD_KEYS.has(k)) || (c.last[k] !== undefined && now - c.last[k] < COMBAT_COOLDOWN_MS));
+      if (key) {
+        const [type, subtype] = key.split('.');
+        fireOneShot(c, { type, subtype, light: c.count < 2 }, now);
+        c.lastKey = key;
+        c.count++;
+        if (LOUD_KEYS.has(key)) c.lastLoud = now;
+      }
+      untilLull--;
+      let wait = rand(1100, 2800);
+      if (untilLull <= 0) {
+        wait = rand(3000, 4500);
+        untilLull = 5 + Math.floor(Math.random() * 3);
+      }
+      combatLater(c, step, wait);
+    };
+    combatLater(c, step, 900);
+  }
+
   // ---------- scene control ----------
   function stopMusic(fade) {
     mp3Halt(fade);
@@ -786,15 +1197,18 @@ const BGAudio = (function () {
     if (!canMusic || scene === 'silent') {
       stopMusic(0.5);
       stopSfx();
+      stopCombat(0.2);
       currentScene = null;
       return;
     }
     if (scene === currentScene) return; // already there: never restart
     const previous = currentScene;
     currentScene = scene;
+    if (scene !== 'battle') stopCombat(scene === 'victory' ? 0.35 : 0.2); // combat sounds belong to the judging screen only
     if (scene === 'battle') {
       startMusic('battle');
       startSfxSession();
+      startCombat();
     } else if (scene === 'victory') {
       stopSfx(); // battle cries, roars and weapon effects stop before the fanfare
       startMusic('victory'); // Taiko continues under the fanfare
@@ -817,6 +1231,10 @@ const BGAudio = (function () {
     const now = ctx.currentTime;
     mp3Bus.gain.cancelScheduledValues(now);
     mp3Bus.gain.setTargetAtTime(on ? MUSIC_CONFIG.duckFactor : 1, now, 0.15); // smooth in both directions
+    if (combatBus) {
+      combatBus.gain.cancelScheduledValues(now);
+      combatBus.gain.setTargetAtTime(on ? COMBAT_LEVEL * COMBAT_DUCK : COMBAT_LEVEL, now, 0.1); // effects never bury the voice
+    }
   }
 
   function activated() {
@@ -954,6 +1372,7 @@ const BGAudio = (function () {
     } else {
       stopMusic(0.4);
       stopSfx();
+      stopCombat(0.2);
       currentScene = null;
     }
     if (!running() && mode() !== 'mute') attachGestures();
@@ -964,13 +1383,17 @@ const BGAudio = (function () {
     if (document.hidden) {
       cancelSpeech();
       stopSfx(); // timers would keep queuing effects while the context is suspended
+      stopCombat(0.05);
       mp3PauseForHidden();
       ctx.suspend().catch(() => {});
     } else if (musicOn() && activated()) {
       ctx.resume().then(() => {
         mp3ResumeAfterHidden();
         applyScene();
-        if (wantedScene === 'battle' && musicOn()) startSfxSession();
+        if (wantedScene === 'battle' && musicOn()) {
+          startSfxSession();
+          startCombat();
+        }
       }, () => {});
     }
   });
@@ -978,6 +1401,7 @@ const BGAudio = (function () {
   window.addEventListener('pagehide', () => {
     cancelSpeech();
     stopSfx();
+    stopCombat(0.05);
     stopMusic(0.1);
   });
 
@@ -993,6 +1417,7 @@ const BGAudio = (function () {
     sayQueue,
     cancelSpeech,
     narrate,
+    combatPalette,
     canNarrate,
     victoryDelay,
     // Read-only snapshot for tests / diagnostics.
@@ -1017,6 +1442,19 @@ const BGAudio = (function () {
       tags: [...fighterTags],
       played: { ...played },
       weights: effectWeights(),
+      combat: {
+        mode: combat ? combat.mode : null,
+        tags: combat ? combat.palette.tags : [],
+        ambienceKind: combat ? combat.palette.ambience : null,
+        active: combat ? combat.active : 0,
+        ambience: combat && combat.ambience ? combat.ambience.key : null,
+        played: [...combatStats.played],
+        skipped: combatStats.skipped,
+        missing: combatStats.missing,
+        maxActive: combatStats.maxActive,
+        sessions: combatStats.sessions,
+        busLevel: combatBus ? combatBus.gain.value : null,
+      },
     }),
   };
 })();

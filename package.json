@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "echo 'static site, no build step'",
-    "test": "node tests/fighter-policy.test.js"
+    "test": "node tests/fighter-policy.test.js && node tests/judging-audio.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

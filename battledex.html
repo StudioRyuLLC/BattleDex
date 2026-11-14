@@ -125,6 +125,23 @@
     </div>
   </div>
 
+  <div id="delete-modal" class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-text" hidden>
+    <div class="confirm-box">
+      <svg class="icon confirm-icon" aria-hidden="true"><use href="#i-skull"/></svg>
+      <h2 id="delete-title" class="confirm-title">Delete this fighter?</h2>
+      <p id="delete-text" class="confirm-text">Permanently remove &ldquo;<span id="delete-name" class="delete-name"></span>&rdquo; from your BattleDex? This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button type="button" id="delete-cancel">
+          <span>Cancel</span>
+        </button>
+        <button type="button" id="delete-yes" class="danger">
+          <svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg>
+          <span>Delete Fighter</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="confirm-fight" class="confirm" role="dialog" aria-modal="true" aria-labelledby="fight-title" hidden>
     <div class="confirm-box">
       <svg class="icon confirm-icon icon-fight" aria-hidden="true"><use href="#i-swords"/></svg>

@@ -276,6 +276,83 @@ previewModal.addEventListener('keydown', (e) => {
   }
 });
 
+// ---------- Delete confirmation (Stage 9.3): nothing is removed until the player confirms ----------
+const deleteModal = document.getElementById('delete-modal');
+const deleteName = document.getElementById('delete-name');
+const deleteCancel = document.getElementById('delete-cancel');
+const deleteYes = document.getElementById('delete-yes');
+let deleteTarget = null; // { image, label }
+let deleteOpener = null;
+
+function unlockBackground() {
+  backgroundEls.forEach((el) => el && (el.inert = false));
+  document.body.classList.remove('modal-open');
+}
+
+function openDeleteModal(fighter, opener) {
+  deleteTarget = { image: fighter.image, label: fighter.label };
+  deleteOpener = opener;
+  deleteName.textContent = fighter.label; // textContent: names are never parsed as HTML
+  backgroundEls.forEach((el) => el && (el.inert = true));
+  document.body.classList.add('modal-open');
+  deleteModal.hidden = false;
+  deleteCancel.focus(); // Cancel is the safe default
+}
+
+function closeDeleteModal(restoreFocus = true) {
+  deleteModal.hidden = true;
+  unlockBackground();
+  updateFloatFight();
+  const opener = deleteOpener;
+  deleteTarget = null;
+  deleteOpener = null;
+  if (!restoreFocus) return;
+  // Back to the trash button that opened the dialog (or the first card if that card is gone).
+  if (opener && document.contains(opener)) opener.focus({ preventScroll: true });
+  else (document.querySelector('.card-delete') || newBtn).focus({ preventScroll: true });
+}
+
+function confirmDelete() {
+  const target = deleteTarget;
+  if (!target) return;
+  const next = loadDex();
+  const at = next.findIndex((f) => f.image === target.image && f.label === target.label);
+  if (at !== -1) {
+    next.splice(at, 1);
+    saveDex(next);
+  }
+  selected.delete(target.image);
+  if (next.length === 0) {
+    closeDeleteModal(false);
+    location.href = 'index.html#new'; // last fighter gone: show the entry screen
+    return;
+  }
+  deleteOpener = null; // that card is about to be re-rendered
+  renderDex();
+  closeDeleteModal();
+}
+
+deleteCancel.addEventListener('click', () => closeDeleteModal());
+deleteYes.addEventListener('click', confirmDelete);
+deleteModal.addEventListener('click', (e) => {
+  if (e.target === deleteModal) closeDeleteModal();
+});
+deleteModal.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeDeleteModal();
+  } else if (e.key === 'Tab') {
+    const first = deleteCancel, last = deleteYes;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+});
+
 function renderDex() {
   const list = loadDex();
   const grid = document.getElementById('dex-grid');
@@ -302,15 +379,7 @@ function renderDex() {
     del.append(makeIcon('trash'));
     del.addEventListener('click', (e) => {
       e.stopPropagation(); // deleting must not toggle selection
-      const next = loadDex();
-      next.splice(index, 1);
-      saveDex(next);
-      selected.delete(fighter.image);
-      if (next.length === 0) {
-        location.href = 'index.html#new'; // last fighter gone: show the entry screen
-        return;
-      }
-      renderDex();
+      openDeleteModal(fighter, del); // nothing is removed until the player confirms
     });
 
     top.append(no, del);

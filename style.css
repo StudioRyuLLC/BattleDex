@@ -2866,3 +2866,17 @@ body.modal-open .help-btn .help-tip {
     width: 100%;
   }
 }
+
+/* ---------- Stage 9.3: BattleDex delete confirmation ---------- */
+.delete-name {
+  color: var(--text-bright);
+  font-style: normal;
+  font-weight: 700;
+  overflow-wrap: anywhere; /* long or unbroken names wrap instead of overflowing the dialog */
+  word-break: break-word;
+}
+
+#delete-modal .confirm-box {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}

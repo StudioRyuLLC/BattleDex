@@ -30,10 +30,33 @@
       url: 'https://pixabay.com/users/alec_koff-54645061/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=490663',
     },
   ];
-  // Future combat sound-effect contributors: add { scene, work, artist, url, source } here and
-  // they appear in the "Combat sound effects" list automatically. Today every effect is
-  // synthesized in the browser, so there is nobody to credit (do not add placeholders).
-  const SFX_CREDITS = [];
+  // Combat sound-effect credits (Stage 9.3). To register another contributor, add one entry:
+  //   { scene: 'what it is used for', work: 'what they made', artist: 'Pixabay user name',
+  //     url: 'optional profile link', source: 'Pixabay' }
+  // They appear in the "Combat sound effects" list automatically. Rules: never invent a name, link or
+  // license. The MP3s carry no embedded tags, so for now the artist is the Pixabay user name that
+  // forms the start of each file name in assets/audio/ ("url" stays empty until the real Pixabay
+  // profile link is confirmed; an entry without a url is shown as plain text).
+  const SFX_CREDITS = [
+    { scene: 'Blades and spells', work: 'sword slice, violent sword slice, sword clash hit, elemental spell impact (ice)', artist: 'dragon-studio', source: 'Pixabay' },
+    { scene: 'Blades', work: 'swords', artist: 'magiaz', source: 'Pixabay' },
+    { scene: 'Whooshes', work: 'whoosh and slash sounds, different pitches vol. 2', artist: 'ponjisk', source: 'Pixabay' },
+    { scene: 'Blades, energy weapons and firearms', work: 'sword against sword; beam 8; sci-fi energy gun; M4 assault rifle long burst', artist: 'freesound_community', source: 'Pixabay' },
+    { scene: 'Hand-to-hand and energy weapons', work: 'punch 03; sci-fi blaster shot', artist: 'universfield', source: 'Pixabay' },
+    { scene: 'Energy weapons', work: 'short energy beam shot 3', artist: 'yodguard', source: 'Pixabay' },
+    { scene: 'Energy weapons', work: 'plasma gun fire', artist: 'lordsonny', source: 'Pixabay' },
+    { scene: 'Robots and machinery', work: 'sound design elements, robot mechanism 015 and 032', artist: 'audiopapkin', source: 'Pixabay' },
+    { scene: 'Firearms', work: 'gun fire', artist: 'foisal72', source: 'Pixabay' },
+    { scene: 'Firearms and explosions', work: 'auto gun shots; explosion FX', artist: 'soundreality', source: 'Pixabay' },
+    { scene: 'Magic', work: 'magic boom FX', artist: 'asproductionmusic', source: 'Pixabay' },
+    { scene: 'Creatures', work: 'edited dinosaur roars 15', artist: 'febixaj5', source: 'Pixabay' },
+    { scene: 'Battle voices', work: 'hilarious yelling', artist: 'jimiwild', source: 'Pixabay' },
+    { scene: 'Battle voices', work: 'army of soldiers battle cry', artist: 'jesuschristisgod', source: 'Pixabay' },
+    { scene: 'Battle voices', work: 'male and female fighter voice attack grunts', artist: 'phatphrogstudio', source: 'Pixabay' },
+    { scene: 'Battlefield ambience', work: 'angry mob loop', artist: 'freesound_community', source: 'Pixabay' },
+    { scene: 'Battlefield ambience', work: 'brutal battle', artist: 'mavopix', source: 'Pixabay' },
+    { scene: 'Battlefield ambience', work: 'WWII battle', artist: 'two_hats', source: 'Pixabay' },
+  ];
 
   // What "Read Guide Aloud" says. Plain sentences, no URLs, symbols or ampersands, and no
   // periods inside abbreviations (the narrator splits on sentence punctuation). Keep this in
@@ -50,14 +73,14 @@
     'Step six, build your BattleDex. Press Save to BattleDex under a portrait to keep that fighter in your browser, then reuse them in later battles. Two starter champions wait there on your first visit.',
     'Step seven, fight again. Choose Fight again for a fresh start, Rematch to replay the same two fighters, or tap a portrait to challenge that fighter with a new opponent.',
     'Audio controls.',
-    'The speaker button in the bottom left corner opens the sound settings. Background music has its own volume slider, and it lowers itself while speech plays. Combat sound effects and the victory fanfare play during battles. Spoken announcements and the Read verdict aloud button use your browser\'s voice.',
+    'The speaker button in the bottom left corner opens the sound settings. Background music has its own volume slider, and it lowers itself while speech plays. Combat sound effects play while the Oracle deliberates, chosen to suit your fighters: blades for swordsmen, spells for wizards, roars for dragons, and so on. They stop when the verdict appears. Effects follow the sound mode: they are skipped in Voice only and Mute all. Spoken announcements and the Read verdict aloud button use your browser\'s voice.',
     'There are four audio modes: All audio, Voice only, Music and effects only, and Mute all. Speech works only in All audio or Voice only, and only in browsers that support speech. Sound begins after your first tap or key press, as browsers require.',
     'Technology behind the game.',
     'Battleground is built with HTML, CSS, and JavaScript, and was developed with the help of Claude Code. While you play, Anthropic\'s Claude judges the battles and tells their story, and OpenAI paints the fighter portraits. Your browser provides the sound effects, the narration voice, and the BattleDex storage. Vercel hosts the game, and Git and GitHub keep its version history.',
     'Creator credits.',
     'Created and developed by Studio Ryu, LLC. Studio Ryu provided the creative direction, interface design, front-end development, new features, AI-assisted development direction, testing, accessibility work, and production deployment. Battleground evolved from a free introductory Claude Code course project into an expanded, independently customized application.',
     'Music credits.',
-    'Music by Ievgen Poltavskyi, also known as HitsLab, for the home screen. Music by Yevhen Astafiev for the BattleDex. Music by Alec Koff for judging and victory. All music is from Pixabay. The combat sound effects are generated in your browser.',
+    'Music by Ievgen Poltavskyi, also known as HitsLab, for the home screen. Music by Yevhen Astafiev for the BattleDex. Music by Alec Koff for judging and victory. All music is from Pixabay. Many combat sound effects are from Pixabay creators, listed in the credits section. The battle skirmish sounds and the victory fanfare are generated in your browser.',
     'That is the end of the guide. Close it any time to return to the arena.',
   ].join(' ');
 
@@ -196,7 +219,7 @@
     const audioList = h('ul', { class: 'guide-list' },
       h('li', null, h('strong', null, 'Settings. '), 'The round speaker button in the bottom-left corner opens the sound settings on every screen.'),
       h('li', null, h('strong', null, 'Background music. '), 'Each part of the game has its own theme. A “Background Music” slider (0–100%) sets its volume, and the music lowers itself while speech plays.'),
-      h('li', null, h('strong', null, 'Combat sound effects. '), 'Clashes play during the battle and a fanfare sounds for the victor. These are generated live in your browser.'),
+      h('li', null, h('strong', null, 'Combat sound effects. '), 'While the Oracle deliberates, battle sounds matched to your two fighters play: blades, punches, arrows, spells, roars, robots, gunfire and more. A fanfare sounds for the victor. The verdict is always written out in full, so nothing depends on hearing the sounds.'),
       h('li', null, h('strong', null, 'Speech narration. '), 'Announcements such as the start of a battle and the victor are spoken with your browser’s built-in voice.'),
       h('li', null, h('strong', null, 'Audio modes. '), h('em', null, 'All audio'), ' (everything), ', h('em', null, 'Voice only'), ' (speech, no music or effects), ', h('em', null, 'Music & effects only'), ' (no speech) and ', h('em', null, 'Mute all'), '.'),
       h('li', null, h('strong', null, 'Verdict narration. '), 'Under each verdict, ', h('em', null, 'Read verdict aloud'), ' reads the Oracle’s ruling on demand and can be stopped with the same button.'),
@@ -239,8 +262,8 @@
           SFX_CREDITS.map((c) =>
             h('li', null,
               h('span', { class: 'credit-scene' }, c.scene || 'Sound effect'),
-              h('span', { class: 'credit-line' }, (c.work ? '“' + c.work + '” by ' : 'By '), ext(c.url, c.artist), c.source ? ' from ' + c.source : ''))))
-      : h('p', null, 'All combat sound effects and the victory fanfare are generated live in your browser with the Web Audio API, and narration uses your browser’s own voice, so there are no third-party sound-effect credits at this time.');
+              h('span', { class: 'credit-line' }, (c.work ? c.work + ' by ' : 'By '), c.url ? ext(c.url, c.artist) : c.artist, c.source ? ' from ' + c.source : ''))))
+      : h('p', null, 'The battle skirmish sounds and the victory fanfare are generated live in your browser with the Web Audio API, and narration uses your browser’s own voice.');
 
     const bodyEl = h('div', { class: 'guide-body' },
       h('div', { class: 'guide-read-row' }, readBtn, readNote, readStatus),
