@@ -2415,22 +2415,71 @@ body.modal-open .settings-fab {
   opacity: 0 !important;
 }
 
-/* First visit: a gentle pulse until the guide has been opened once. */
+/* First visit (Stage 9.4): the winner-card treatment, scaled to a button, until the guide has been
+   opened once: gold ring, amber halo, a slow breathing glow and a soft sheen that drifts across.
+   It never flashes (one breath every 3.4 s) and sits on top of the page without catching clicks. */
 .help-btn.is-new {
-  border-color: var(--gold);
-  animation: help-pulse 2.6s ease-in-out infinite;
+  border-color: var(--gold-hi);
+  color: var(--gold-pale);
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(255, 244, 214, 0.5) 50%, transparent 62%) 160% 0 / 260% 100% no-repeat,
+    radial-gradient(circle at 50% 38%, #5A3F1B, #2A1D0E 72%);
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px #C8933C,
+    0 0 20px 4px rgba(255, 190, 90, 0.5),
+    0 0 52px 10px rgba(232, 140, 50, 0.28);
+  animation: help-breathe 3.4s ease-in-out infinite, help-sheen 6.8s ease-in-out infinite;
 }
 
-@keyframes help-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px var(--bg), 0 0 0 3px var(--bg), 0 0 10px rgba(226, 182, 92, 0.25); }
-  50% { box-shadow: 0 0 0 3px var(--bg), 0 0 0 8px rgba(226, 182, 92, 0.28), 0 0 26px rgba(226, 182, 92, 0.6); }
+.help-btn.is-new .icon {
+  filter: drop-shadow(0 0 5px rgba(255, 210, 120, 0.9));
+}
+
+/* Wide soft halo behind the button (the winner card's outer glow). */
+.help-btn.is-new::before {
+  content: '';
+  position: absolute;
+  inset: -22px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 100, 0.34), rgba(232, 140, 50, 0.12) 55%, transparent 72%);
+  pointer-events: none;
+  animation: help-halo 3.4s ease-in-out infinite;
+}
+
+@keyframes help-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px #C8933C, 0 0 20px 4px rgba(255, 190, 90, 0.5), 0 0 52px 10px rgba(232, 140, 50, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--gold-pale), 0 0 30px 7px rgba(255, 200, 100, 0.72), 0 0 78px 16px rgba(232, 140, 50, 0.4);
+  }
+}
+
+@keyframes help-halo {
+  0%, 100% { opacity: 0.65; transform: scale(0.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* The sheen crosses once per cycle, then rests. */
+@keyframes help-sheen {
+  0%, 55% { background-position: 160% 0, 0 0; }
+  85%, 100% { background-position: -60% 0, 0 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Still noticeable, never moving. */
+  /* Still prominent (ring, halo, gold fill), never moving. */
   .help-btn.is-new {
     animation: none;
-    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px rgba(226, 182, 92, 0.45), 0 0 18px rgba(226, 182, 92, 0.45);
+    background: radial-gradient(circle at 50% 38%, #6A4A20, #2A1D0E 72%);
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--gold-pale), 0 0 26px 6px rgba(255, 200, 100, 0.65), 0 0 64px 12px rgba(232, 140, 50, 0.34);
+  }
+
+  .help-btn.is-new::before {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 
   .help-tip {

@@ -13,7 +13,7 @@ Add any future sound-effect contributor to `SFX_CREDITS` in `guide.js` and to th
 | Judging / Victory music | `audio/music/alec_koff-japan-taiko-490663.mp3`, Alec Koff, Pixabay | Pixabay Content License, credited in the guide |
 | Victory fanfare | synthesized in `audio.js` | original, project-owned |
 | Sword clash / strike / heavy impact / crowd ambience | synthesized in `audio.js` | original, project-owned |
-| Combat sound effects (Stage 9.3) | 32 Pixabay MP3s in `audio/` (flat, next to `music/`); clip windows and the cue-to-file mapping live in `COMBAT_SOUNDS` / `COMBAT_AMBIENCE` in `audio.js` | Pixabay Content License. Creator = the Pixabay user name that starts each file name (no embedded tags), credited in `SFX_CREDITS` in `guide.js` |
+| Combat sound effects (Stages 9.3 and 9.4) | 38 Pixabay MP3s in `audio/` (flat, next to `music/`): 32 from 9.3 plus the 6 below; 1 more file is present but unused (see "Stage 9.4 inventory"). Clip windows and the cue-to-file mapping live in `COMBAT_SOUNDS` / `COMBAT_AMBIENCE` in `audio.js` | Pixabay Content License. Creator = the Pixabay user name that starts each file name (no embedded tags), credited in `SFX_CREDITS` in `guide.js`. Unverified: the exact creator names, profile links and license wording still need confirming on Pixabay |
 | Spoken announcements and narration | browser Web Speech API (`speechSynthesis`) | no assets, no paid TTS |
 
 ## Animated fighters
@@ -46,3 +46,21 @@ appears. Nothing comes from the AI or the server. The only mapping from a key to
 files are long compilations) and `COMBAT_AMBIENCE` (looped beds) in `audio.js`. To add a sound: put the MP3 in `audio/`, add a clip line,
 add the creator to `SFX_CREDITS` in `guide.js`, and add a row above. No archery recordings are present
 yet, so `projectile.arrow` reuses pitched-up whoosh clips.
+
+### Stage 9.4 inventory (verified on disk, original file names kept)
+| File (in `audio/`) | Length | Used as | Window(s) / level |
+|---|---|---|---|
+| `goodsoupdisciple-witch-cackle-250272.mp3` | 7.9 s | `voice.cackle` (witch) | two cackles: 0.3 s +1.9 s, 4.05 s +1.8 s; gain 3 (very quiet source) |
+| `alesiadavina-evil-witch-cackle-laugh-dark-female-laughter-sfx-553614.mp3` | 2.8 s | `voice.cackle_evil` ("evil/dark/wicked witch or sorceress") | whole file; gain 1.4 |
+| `freesound_community-ambientgunfire-24696.mp3` | 140 s | `ambience.gunfire` bed (modern military fighters) | steady stretch 40 s +30 s, looped with 30 ms edge fades; gain 0.4 |
+| `freesound_community-artillery-gunfire-14607.mp3` | 7 s | `explosion.artillery` (loud, rare) | three booms: 0 s +2.6 s, 3.1 s +1.65 s, 5.15 s +1.4 s; gain 0.65 |
+| `mikst656-lasergun-152375.mp3` | 1.3 s | `energy_weapon.laser` | whole file; gain 0.55 |
+| `guywiththegoodsounds-swashbuckling-pirates-463695.mp3` | 6.1 s | `voice.pirate` | four bursts cut at the quiet gaps: 0.5 s +0.8, 1.35 s +1.0, 3.05 s +0.75, 3.9 s +1.7; gain 1.2-1.8 |
+
+Gains come from measuring each window's RMS against existing clips. Slow effects rest longer: both
+cackle files share a 9 s cooldown, artillery 6.5 s, pirate shouts 3.5 s (others keep 450 ms).
+Rules: witch words give cackles (an "evil/dark/wicked" witch or sorceress favors the evil one); a bare
+"sorceress" or any female fighter never does. Not auditioned by ear (windows were found from the
+waveform, so confirm by listening, especially the pirate file whose content type is unverified).
+`freesound_community-witch-laugh-28961.mp3` (25.8 s) is on disk but was not in the Stage 9.4 list, so it is
+not used or credited; delete it or tell me to map it.

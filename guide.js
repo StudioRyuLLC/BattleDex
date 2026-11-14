@@ -1,8 +1,9 @@
 // Stage 9.1: "How to Play & About" guide (help button in the header + accessible modal).
 // Loaded on index.html and battledex.html after audio.js / settings.js / settings-ui.js.
 //
-// - The "?" button is static markup in both headers (#help-btn). It pulses until the guide is
-//   opened once (localStorage flag); prefers-reduced-motion swaps the pulse for a static glow.
+// - The "?" button is static markup in both headers (#help-btn). It glows gold (Stage 9.4, the
+//   Victory winner-card look) until the guide is opened once (one localStorage flag shared by both
+//   pages); prefers-reduced-motion swaps the breathing glow for a static ring and halo.
 // - The dialog is built lazily on first open, so its portraits are not requested until needed.
 // - "Read Guide Aloud" reuses BGAudio.narrate (no second speech system), so audio mode, music
 //   ducking and "one narration at a time" all behave exactly like the verdict button.
@@ -41,7 +42,11 @@
     { scene: 'Blades and spells', work: 'sword slice, violent sword slice, sword clash hit, elemental spell impact (ice)', artist: 'dragon-studio', source: 'Pixabay' },
     { scene: 'Blades', work: 'swords', artist: 'magiaz', source: 'Pixabay' },
     { scene: 'Whooshes', work: 'whoosh and slash sounds, different pitches vol. 2', artist: 'ponjisk', source: 'Pixabay' },
-    { scene: 'Blades, energy weapons and firearms', work: 'sword against sword; beam 8; sci-fi energy gun; M4 assault rifle long burst', artist: 'freesound_community', source: 'Pixabay' },
+    { scene: 'Blades, energy weapons, firearms and artillery', work: 'sword against sword; beam 8; sci-fi energy gun; M4 assault rifle long burst; artillery gunfire; ambient gunfire', artist: 'freesound_community', source: 'Pixabay' },
+    { scene: 'Witches', work: 'witch cackle', artist: 'goodsoupdisciple', source: 'Pixabay' },
+    { scene: 'Dark witches', work: 'evil witch cackle laugh, dark female laughter', artist: 'alesiadavina', source: 'Pixabay' },
+    { scene: 'Laser weapons', work: 'laser gun', artist: 'mikst656', source: 'Pixabay' },
+    { scene: 'Pirates', work: 'swashbuckling pirates', artist: 'guywiththegoodsounds', source: 'Pixabay' },
     { scene: 'Hand-to-hand and energy weapons', work: 'punch 03; sci-fi blaster shot', artist: 'universfield', source: 'Pixabay' },
     { scene: 'Energy weapons', work: 'short energy beam shot 3', artist: 'yodguard', source: 'Pixabay' },
     { scene: 'Energy weapons', work: 'plasma gun fire', artist: 'lordsonny', source: 'Pixabay' },
@@ -127,7 +132,7 @@
   const frame = (src, alt, extra) =>
     h('span', { class: 'mini-frame' + (extra ? ' ' + extra : '') }, h('img', { src, alt, width: '96', height: '96', loading: 'lazy', decoding: 'async' }));
 
-  // ===== Pulse until first open =====
+  // ===== Glow until first open =====
   if (!lsGet()) btn.classList.add('is-new');
 
   // Hover tooltip: WCAG 1.4.13, so Escape dismisses it without moving focus.

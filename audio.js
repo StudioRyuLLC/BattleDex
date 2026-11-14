@@ -774,6 +774,8 @@ const BGAudio = (function () {
   const WHOOSH = 'ponjisk-whooshslash-sounds-different-pitches-vol2-187377.mp3';
   const SWORDS = 'freesound_community-sword-against-sword-6341.mp3';
   const ROARS = 'febixaj5-edited-dinosaur-roars-15-566149.mp3';
+  const ARTILLERY = 'freesound_community-artillery-gunfire-14607.mp3';
+  const PIRATES = 'guywiththegoodsounds-swashbuckling-pirates-463695.mp3';
   const COMBAT_SOUNDS = {
     'weapon_swing.blade': [
       clip('dragon-studio-sword-slice-393847.mp3', 0, 1.3, 0.9),
@@ -808,6 +810,15 @@ const BGAudio = (function () {
     'energy_weapon.beam': [clip('freesound_community-beam-8-43831.mp3', 0, 0.9, 1.3), clip('yodguard-short-energy-beam-shot-3-482517.mp3', 0, 1.5, 1)],
     'energy_weapon.plasma': [clip('lordsonny-plasma-gun-fire-162136.mp3', 0.1, 2, 0.5)],
     'energy_weapon.energy_gun': [clip('freesound_community-sci-fi-energy-gun-39409.mp3', 0, 1.8, 1.2)],
+    // Stage 9.4. Levels were measured (RMS of each window against the clips above), not guessed.
+    'energy_weapon.laser': [clip('mikst656-lasergun-152375.mp3', 0, 1.3, 0.55)], // one zap, a sharp high laser
+    // Three separate artillery booms in one 7 s recording; each is cut out on its own.
+    'explosion.artillery': [clip(ARTILLERY, 0, 2.6, 0.65), clip(ARTILLERY, 3.1, 1.65, 0.65), clip(ARTILLERY, 5.15, 1.4, 0.65)],
+    // Two cackles in the quiet recording (cut in the silence between them) and one longer evil cackle.
+    'voice.cackle': [clip('goodsoupdisciple-witch-cackle-250272.mp3', 0.3, 1.9, 3), clip('goodsoupdisciple-witch-cackle-250272.mp3', 4.05, 1.8, 3)],
+    'voice.cackle_evil': [clip('alesiadavina-evil-witch-cackle-laugh-dark-female-laughter-sfx-553614.mp3', 0, 2.8, 1.4)],
+    // Short pirate shouts and clashes, cut at the quiet gaps between them (the recording is very quiet).
+    'voice.pirate': [clip(PIRATES, 0.5, 0.8, 1.2), clip(PIRATES, 1.35, 1, 1.2), clip(PIRATES, 3.05, 0.75, 1.2), clip(PIRATES, 3.9, 1.7, 1.8)],
     'mechanical.servo': [clip('audiopapkin-sound-design-elements-robot-mechanism-015-336704.mp3', 0.5, 2, 0.9)],
     'mechanical.machinery': [clip('audiopapkin-sound-design-elements-robot-mechanism-032-500870.mp3', 0.35, 2.6, 1)],
     'magic.ice': [clip('dragon-studio-elemental-spell-impact-ice-448564.mp3', 1, 1.9, 0.9)],
@@ -833,12 +844,22 @@ const BGAudio = (function () {
     'ambience.skirmish': clip('mavopix-brutal-battle-159869.mp3', 0, 0, 4), // very quiet recording
     'ambience.crowd': clip('freesound_community-angry-mob-loop-6847.mp3', 0, 0, 1.2),
     'ambience.warfield': clip('two_hats-wwii-battle-408734.mp3', 0, 0, 0.45), // very loud recording
+    // Modern gunfire in the distance: a steady 30 s stretch of a 140 s recording, looped.
+    'ambience.gunfire': clip('freesound_community-ambientgunfire-24696.mp3', 40, 30, 0.4),
   };
 
   const COMBAT_LEVEL = 0.6; // overall level of AI-directed effects (on top of each clip's own gain)
   const AMBIENCE_LEVEL = 0.3;
   const COMBAT_MAX_ACTIVE = 4; // one-shots sounding at the same moment
   const COMBAT_COOLDOWN_MS = 450; // the same type.subtype can't retrigger faster than this
+  // Slow effects get a longer rest. Both cackle recordings share one group, so two never overlap.
+  const COOLDOWN_GROUP = { 'voice.cackle': 'cackle', 'voice.cackle_evil': 'cackle' };
+  const COOLDOWN_MS = { cackle: 9000, 'explosion.artillery': 6500, 'voice.pirate': 3500 };
+  const cooldownGroup = (key) => COOLDOWN_GROUP[key] || key;
+  const onCooldown = (c, key, now) => {
+    const g = cooldownGroup(key);
+    return c.last[g] !== undefined && now - c.last[g] < (COOLDOWN_MS[g] || COMBAT_COOLDOWN_MS);
+  };
   const COMBAT_LATE_MS = 2500; // a clip that finishes loading later than this after its cue is dropped
   const COMBAT_DUCK = 0.4; // effect level multiplier while speech plays
 
@@ -864,19 +885,31 @@ const BGAudio = (function () {
     return p;
   }
 
+  // Copy one window out of a decoded file into its own small buffer. A looping bed gets a few ms
+  // of fade at both ends so the loop point cannot click.
+  function sliceBuffer(full, start, dur, edgeSec) {
+    const sr = full.sampleRate;
+    const from = Math.min(full.length - 1, Math.floor(start * sr));
+    const to = Math.min(full.length, from + Math.max(1, Math.floor(dur * sr)));
+    const out = ctx.createBuffer(full.numberOfChannels, to - from, sr);
+    const edge = Math.min(Math.floor(edgeSec * sr), Math.floor((to - from) / 2));
+    for (let ch = 0; ch < full.numberOfChannels; ch++) {
+      const d = out.getChannelData(ch);
+      d.set(full.getChannelData(ch).subarray(from, to));
+      for (let i = 0; i < edge; i++) {
+        d[i] *= i / edge;
+        d[d.length - 1 - i] *= i / edge;
+      }
+    }
+    return out;
+  }
+
   // Decode, then keep only the needed window as its own small buffer (the full file is dropped).
   function loadClip(c) {
     const key = `${c.file}@${c.start}+${c.dur}`;
     if (clipCache.has(key)) return clipCache.get(key);
     const p = fetchDecode(c.file)
-      .then((full) => {
-        const sr = full.sampleRate;
-        const from = Math.min(full.length - 1, Math.floor(c.start * sr));
-        const to = Math.min(full.length, from + Math.max(1, Math.floor(c.dur * sr)));
-        const out = ctx.createBuffer(full.numberOfChannels, to - from, sr);
-        for (let ch = 0; ch < full.numberOfChannels; ch++) out.getChannelData(ch).set(full.getChannelData(ch).subarray(from, to));
-        return out;
-      })
+      .then((full) => sliceBuffer(full, c.start, c.dur, 0))
       .catch(() => {
         combatStats.missing++;
         clipCache.delete(key); // a later battle may retry (e.g. after a network blip)
@@ -887,13 +920,16 @@ const BGAudio = (function () {
   }
 
   function loadAmbience(c) {
-    if (ambienceCache.has(c.file)) return ambienceCache.get(c.file);
-    const p = fetchDecode(c.file).catch(() => {
-      combatStats.missing++;
-      ambienceCache.delete(c.file);
-      return null;
-    });
-    ambienceCache.set(c.file, p);
+    const key = `${c.file}@${c.start}+${c.dur}`;
+    if (ambienceCache.has(key)) return ambienceCache.get(key);
+    const p = fetchDecode(c.file)
+      .then((full) => (c.dur > 0 ? sliceBuffer(full, c.start, c.dur, 0.03) : full)) // dur 0 = the whole file
+      .catch(() => {
+        combatStats.missing++;
+        ambienceCache.delete(key);
+        return null;
+      });
+    ambienceCache.set(key, p);
     return p;
   }
 
@@ -957,7 +993,7 @@ const BGAudio = (function () {
   function fireOneShot(c, ev, due) {
     const key = `${ev.type}.${ev.subtype}`;
     const now = performance.now();
-    if ((c.last[key] !== undefined && now - c.last[key] < COMBAT_COOLDOWN_MS) || c.active >= COMBAT_MAX_ACTIVE) {
+    if (onCooldown(c, key, now) || c.active >= COMBAT_MAX_ACTIVE) {
       combatStats.skipped++;
       return;
     }
@@ -966,7 +1002,7 @@ const BGAudio = (function () {
       if (!ev.light) combatStats.missing++;
       return;
     }
-    c.last[key] = now;
+    c.last[cooldownGroup(key)] = now;
     c.active++; // reserve the slot now, so a burst of cues can't all pass the limit check
     combatStats.maxActive = Math.max(combatStats.maxActive, c.active);
     loadClip(cl).then((buf) => {
@@ -1079,13 +1115,19 @@ const BGAudio = (function () {
     ['scifi', /\b(lasers?|blasters?|plasma|space|spaceships?|starships?|sci-?fi|stormtroopers?|darth vader|vader|samus|master chief|halo|cyber\w*|futuristic|astronauts?|aliens?|saiyan|ray ?guns?|photon|star wars|star trek|superman|cosmic|galactic|energy|force)\b/, { 'energy_weapon.blaster': 2.5, 'energy_weapon.beam': 2, 'energy_weapon.plasma': 1.5, 'energy_weapon.energy_gun': 1.5 }],
     ['gun', /\b(soldiers?|seals?|navy|marines?|army|commandos?|delta|snipers?|cowboys?|gunslingers?|gunmen|gunman|police|cops?|swat|special forces|rambo|john wick|mercenar(?:y|ies)|gangsters?|mobsters?|outlaws?|sheriffs?|pistols?|guns?|rifles?|machine guns?|militia|infantry|troops?|squad|platoon|battalion|spies?|james bond|agents?|bounty hunters?|punisher|deadpool|terrorists?|military|gi joe|fbi|cia|green berets?|paratroopers?|assault|shooters?)\b/, { 'gunfire.auto': 2.5, 'gunfire.rifle': 2, 'gunfire.pistol': 2, 'voice.war_cry': 0.8, 'voice.grunt_male': 0.8 }],
     ['explosive', /\b(tanks?|bombs?|bombers?|grenades?|rockets?|nukes?|nuclear|missiles?|dynamite|artillery|cannons?|explosi\w+|bazookas?|landmines?|demolition|warship|battleship|helicopters?|fighter jets?|jets?|tnt)\b/, { 'explosion.blast': 3, 'gunfire.auto': 1 }],
+    // Stage 9.4. Cackles need an explicit witch word; "sorceress" or a plain female fighter never gets one.
+    ['witch', /\b(witch(?:es)?|hags?|crones?|enchantress(?:es)?|baba yaga|maleficent|banshees?|sanderson sisters?)\b/, { 'voice.cackle': 3.5, 'voice.cackle_evil': 0.6 }],
+    ['evil-witch', /\b(evil|wicked|dark|sinister|malevolent|cursed|black)\s+(?:\w+\s+)?(witch(?:es)?|sorceress(?:es)?|enchantress(?:es)?|hags?|crones?)\b/, { 'voice.cackle_evil': 4, 'voice.cackle': 0.5, 'magic.arcane': 1 }],
+    ['laser', /\b(lasers?|laser pistols?|laser guns?|ray ?guns?|blasters?|phasers?|zap guns?)\b/, { 'energy_weapon.laser': 6 }],
+    ['artillery', /\b(artillery|cannons?|howitzers?|mortars?|bombardment|siege (?:engines?|weapons?)|catapults?|trebuchets?|field guns?|battleships?|warships?|galleons?|man[- ]of[- ]war)\b/, { 'explosion.artillery': 3.5 }],
+    ['pirate', /\b(pirates?|corsairs?|buccaneers?|privateers?|swashbucklers?|captain hook|jack sparrow|blackbeard|sea dogs?)\b/, { 'voice.pirate': 3.5, 'explosion.artillery': 0.5 }],
     ['female', /\b(woman|women|female|girls?|queens?|princess(?:es)?|amazons?|valkyrie|valkyries|witch(?:es)?|goddess(?:es)?|lady|ladies|wonder woman|xena|cleopatra|joan of arc|boudica|lara croft|heroine|empress|maiden|sorceress|huntress)\b/, { 'voice.grunt_female': 2.5 }],
     ['group', /\b(squad|army|armies|horde|hordes|legion|legions|platoon|battalion|crowd|mob|team|troops?|soldiers|warriors|knights|vikings|pirates|samurai|ninjas|gladiators|spartans|barbarians|orcs|goblins|zombies|marines|commandos|\d{2,}|dozens?|hundreds?|thousands?|swarm|pack|regiment|brigade|gang|clan|tribe)\b/, { 'voice.war_cry': 2 }],
   ];
   // Tags that only add flavor on top of a real fighting style (they never count as "recognized").
   const FLAVOR_TAGS = new Set(['female', 'group', 'shield', 'elemental', 'ice']);
   const FALLBACK_PALETTE = { 'weapon_swing.blade': 1.5, 'physical_impact.punch': 2, 'physical_impact.kick': 1, 'physical_impact.heavy_hit': 1, 'metal_impact.blade_clash': 1, 'voice.grunt_male': 1, 'voice.yell': 0.8, 'explosion.blast': 0.3 };
-  const LOUD_KEYS = new Set(['explosion.blast', 'creature.roar', 'gunfire.auto', 'gunfire.rifle', 'gunfire.pistol', 'magic.elemental', 'magic.arcane', 'energy_weapon.plasma', 'physical_impact.heavy_hit', 'weapon_swing.heavy_blade', 'voice.war_cry']);
+  const LOUD_KEYS = new Set(['explosion.blast', 'creature.roar', 'gunfire.auto', 'gunfire.rifle', 'gunfire.pistol', 'magic.elemental', 'magic.arcane', 'energy_weapon.plasma', 'explosion.artillery', 'physical_impact.heavy_hit', 'weapon_swing.heavy_blade', 'voice.war_cry']);
 
   // Weights for one fighter, scaled so every fighter contributes the same total (a balanced mix
   // when two different palettes meet). Also returns the matched tag names.
@@ -1114,7 +1156,8 @@ const BGAudio = (function () {
     const weights = {};
     for (const p of [pa, pb]) for (const [k, v] of Object.entries(p.weights)) weights[k] = (weights[k] || 0) + v;
     const text = `${a || ''} ${b || ''}`.toLowerCase();
-    const ambience = /\b(army|armies|war|battalion|legion|legions|platoon|regiment|troops?|soldiers|navy|marines)\b/.test(text) ? 'warfield' : /\b(crowd|mob|horde|hordes|gang|clan|tribe|pack|swarm|\d{2,})\b/.test(text) ? 'crowd' : 'skirmish';
+    const modernWar = /\b(soldiers?|navy|seals?|marines?|troops?|platoon|battalion|commandos?|snipers?|infantry|militia|military|squad|paratroopers?|green berets?|special forces|swat|gi joe|rambo)\b/.test(text) && !/\b(legions?|legionnaires?|romans?|medieval|knights?|vikings?|samurai|spartans?|gladiators?|centurions?|archers?|pirates?|musketeers?|crusaders?|templars?|barbarians?)\b/.test(text);
+    const ambience = modernWar ? 'gunfire' : /\b(army|armies|war|legion|legions|regiment)\b/.test(text) ? 'warfield' : /\b(crowd|mob|horde|hordes|gang|clan|tribe|pack|swarm|\d{2,})\b/.test(text) ? 'crowd' : 'skirmish';
     return { weights, tags: [...new Set([...pa.tags, ...pb.tags])], ambience, fighters: [pa.tags, pb.tags] };
   }
 
@@ -1146,7 +1189,7 @@ const BGAudio = (function () {
     const step = () => {
       const now = performance.now();
       const loudOk = now - c.lastLoud >= COMBAT_LOUD_GAP_MS;
-      const key = pickWeighted(pal.weights, (k) => k === c.lastKey || (c.count < 2 && !(COMBAT_SOUNDS[k] || []).some((x) => !BIG_FILES.has(x.file))) || (!loudOk && LOUD_KEYS.has(k)) || (c.last[k] !== undefined && now - c.last[k] < COMBAT_COOLDOWN_MS));
+      const key = pickWeighted(pal.weights, (k) => k === c.lastKey || (c.count < 2 && !(COMBAT_SOUNDS[k] || []).some((x) => !BIG_FILES.has(x.file))) || (!loudOk && LOUD_KEYS.has(k)) || onCooldown(c, k, now));
       if (key) {
         const [type, subtype] = key.split('.');
         fireOneShot(c, { type, subtype, light: c.count < 2 }, now);
